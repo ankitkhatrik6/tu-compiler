@@ -1041,7 +1041,7 @@ export default function IDEPage() {
       
       {/* PROFESSIONAL IDE TOP HEADER */}
       <header id="header" className="flex items-center justify-between px-4 h-12 bg-[#181818] border-b border-[#2A2A2A] flex-shrink-0">
-        <div className="flex items-center select-none">
+        <div className="flex items-center space-x-3 select-none">
           <Image
             src="/logo.png"
             alt="TU Compiler"
@@ -1050,6 +1050,11 @@ export default function IDEPage() {
             priority
             className="h-8 w-auto object-contain"
           />
+          <div>
+            <h1 className="text-sm font-mono font-bold tracking-tight text-white">
+              TU <span className="text-[#4A9eff]">Compiler</span>
+            </h1>
+          </div>
         </div>
 
         {/* Global Compile Action Center */}
