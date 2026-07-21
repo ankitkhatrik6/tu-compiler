@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
+import Image from "next/image";
 import Editor from "@monaco-editor/react";
 import {
   Folder,
@@ -1040,16 +1041,15 @@ export default function IDEPage() {
       
       {/* PROFESSIONAL IDE TOP HEADER */}
       <header id="header" className="flex items-center justify-between px-4 h-12 bg-[#181818] border-b border-[#2A2A2A] flex-shrink-0">
-        <div className="flex items-center space-x-3 select-none">
-          {/* Logo Brand Accent */}
-          <div className="px-1.5 h-6 flex items-center justify-center bg-[#2D2D2D] border border-[#3A3A3A] rounded">
-            <span className="font-mono text-xs font-bold text-[#4A9eff]">TU</span>
-          </div>
-          <div>
-            <h1 className="text-sm font-mono font-bold tracking-tight text-white">
-              TU <span className="text-[#4A9eff]">Compiler</span>
-            </h1>
-          </div>
+        <div className="flex items-center select-none">
+          <Image
+            src="/logo.png"
+            alt="TU Compiler"
+            width={120}
+            height={32}
+            priority
+            className="h-8 w-auto object-contain"
+          />
         </div>
 
         {/* Global Compile Action Center */}
