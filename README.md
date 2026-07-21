@@ -59,15 +59,11 @@ It uses the Gemini API under the hood to simulate a real GCC/G++ compiler and Li
 
 ```bash
 # Clone the repo
-git clone https://github.com/your-username/tucompiler.git
-cd tucompiler
+git clone https://github.com/ankitkhatrik6/tu-compiler.git
+cd tu-compiler
 
 # Install dependencies
 npm install
-
-# Set up environment variables
-cp .env.example .env.local
-# Edit .env.local and add your Gemini API key
 ```
 
 ### Run Locally
@@ -114,7 +110,7 @@ npm start
 ## Project Structure
 
 ```
-tucompiler/
+tu-compiler/
 ├── app/
 │   ├── api/
 │   │   └── compile/
@@ -124,7 +120,6 @@ tucompiler/
 │   └── page.tsx            # Main IDE interface
 ├── hooks/                  # Custom React hooks
 ├── lib/                    # Utility functions
-├── .env.example            # Environment variable template
 ├── next.config.ts
 └── package.json
 ```
