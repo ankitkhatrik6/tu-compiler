@@ -21,7 +21,7 @@ export const metadata: Metadata = {
     template: '%s | TU Compiler',
   },
   description:
-    'TU Compiler is a free, browser-based C and C++ IDE with an integrated terminal. Write, compile, and run your programs online — no installation needed. Perfect for Tribhuvan University (TU) students.',
+    'TU Compiler is a free, browser-based C and C++ IDE with an integrated terminal. Write, compile, and run your programs online — no installation needed. Made for Tribhuvan University students.',
   keywords: [
     'C compiler online',
     'C++ compiler online',
@@ -59,7 +59,7 @@ export const metadata: Metadata = {
     siteName: 'TU Compiler',
     title: 'TU Compiler — Browser-Based C/C++ IDE',
     description:
-      'Write, compile, and run C and C++ programs directly in your browser. Free online IDE with an integrated terminal — built for TU students.',
+      'Write, compile, and run C and C++ programs directly in your browser. Free online IDE with an integrated terminal — made for Tribhuvan University students.',
     images: [
       {
         url: '/preview.png',
@@ -73,7 +73,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'TU Compiler — Browser-Based C/C++ IDE',
     description:
-      'Write, compile, and run C/C++ programs in your browser. Free online IDE with integrated terminal.',
+      'Write, compile, and run C/C++ programs in your browser. Free online IDE with integrated terminal. Made for Tribhuvan University students.',
     images: ['/preview.png'],
     creator: '@ankitkhatrik6',
   },
