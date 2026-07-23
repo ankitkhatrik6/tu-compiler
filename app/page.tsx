@@ -212,8 +212,8 @@ export default function IDEPage() {
   const [mounted, setMounted] = useState(false);
 
   // Terminal Username and Hostname Customization with Local Storage persistence
-  const [terminalUser, setTerminalUser] = useState<string>("ankit");
-  const [terminalHost, setTerminalHost] = useState<string>("cppide");
+  const [terminalUser, setTerminalUser] = useState<string>("admin");
+  const [terminalHost, setTerminalHost] = useState<string>("tucompiler");
   const [showTerminalConfig, setShowTerminalConfig] = useState(false);
 
   // Custom Delete and Alert Dialog States for sandboxed iframe safety
@@ -696,11 +696,6 @@ export default function IDEPage() {
           text: `${terminalUser}@${terminalHost}:${pathPart}$ ${log.text}`,
           color: "#4ade80", // bright green prompt start
         });
-      } else if (log.type === "compile-success") {
-        linesToDraw.push({
-          text: log.text.trim(),
-          color: "#34d399", // emerald green success
-        });
       } else if (log.type === "compile-error") {
         // Split multicompile errors
         log.text.split("\n").forEach((l) => {
@@ -716,16 +711,8 @@ export default function IDEPage() {
             color: "#cbd5e1", // neutral slate text
           });
         });
-      } else if (log.type === "exit-status") {
-        log.text.split("\n").forEach((l) => {
-          if (l.trim()) {
-            linesToDraw.push({
-              text: l,
-              color: "#94a3b8", // gray status
-            });
-          }
-        });
       }
+      // Note: compile-success and exit-status are intentionally ignored for PNG export
     });
 
     // Add trailing blank command prompt to complete the terminal screenshot
@@ -741,11 +728,11 @@ export default function IDEPage() {
     const paddingRight = 24;
     const paddingTop = 28;
     const paddingBottom = 28;
-    const fontSize = 14;
+    const fontSize = 15;
     const lineHeight = 22;
 
     // Configure monospace font and calculate canvas width/height
-    ctx.font = `${fontSize}px "JetBrains Mono", "Fira Code", "Consolas", "Monaco", monospace`;
+    ctx.font = `${fontSize}px "Ubuntu Mono", "Consolas", "Monaco", monospace`;
     let maxLineWidth = 600;
 
     // Determine absolute widest line
@@ -768,18 +755,14 @@ export default function IDEPage() {
     ctx.scale(scale, scale);
 
     // Re-apply context font and properties after canvas resize (resizing resets context)
-    ctx.font = `${fontSize}px "JetBrains Mono", "Fira Code", "Consolas", "Monaco", monospace`;
+    ctx.font = `${fontSize}px "Ubuntu Mono", "Consolas", "Monaco", monospace`;
     ctx.textBaseline = "top";
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = "high";
 
     // Draw background
-    ctx.fillStyle = "#0c0c0e"; // Dark slate terminal bg
+    ctx.fillStyle = "#1e1e1e"; // Dark slate terminal bg
     ctx.fillRect(0, 0, canvasWidth, canvasHeight);
-
-    // Draw solid window-like top border accent
-    ctx.fillStyle = "#1e1e24";
-    ctx.fillRect(0, 0, canvasWidth, 6);
 
     // Render lines of text
     linesToDraw.forEach((line, index) => {
@@ -790,25 +773,53 @@ export default function IDEPage() {
       if (line.text.startsWith(expectedPromptPrefix)) {
         const promptEndIndex = line.text.indexOf("$ ");
         if (promptEndIndex !== -1) {
-          const prompt = line.text.substring(0, promptEndIndex + 2);
+          const pathPart = line.text.substring(expectedPromptPrefix.length, promptEndIndex);
           const commandText = line.text.substring(promptEndIndex + 2);
 
-          // Draw prompt part in green
-          ctx.fillStyle = "#34d399";
-          ctx.fillText(prompt, paddingLeft, y);
+          let currentX = paddingLeft;
+          
+          // Draw Blue Dot
+          ctx.fillStyle = "#00BCD4";
+          ctx.font = `${fontSize - 1}px "Ubuntu Mono", "Consolas", monospace`;
+          ctx.fillText("● ", currentX, y);
+          currentX += ctx.measureText("● ").width;
 
-          // Calculate exact starting position for the rest of the text
-          const promptWidth = ctx.measureText(prompt).width;
+          // Back to normal font
+          ctx.font = `bold ${fontSize}px "Ubuntu Mono", "Consolas", monospace`;
+
+          // Draw user@host
+          ctx.fillStyle = "#4ade80";
+          const userHostText = `${terminalUser}@${terminalHost}`;
+          ctx.fillText(userHostText, currentX, y);
+          currentX += ctx.measureText(userHostText).width;
+
+          // Draw :
+          ctx.fillStyle = "#ffffff";
+          ctx.font = `${fontSize}px "Ubuntu Mono", "Consolas", monospace`;
+          ctx.fillText(":", currentX, y);
+          currentX += ctx.measureText(":").width;
+
+          // Draw path
+          ctx.fillStyle = "#3b82f6";
+          ctx.font = `bold ${fontSize}px "Ubuntu Mono", "Consolas", monospace`;
+          ctx.fillText(pathPart, currentX, y);
+          currentX += ctx.measureText(pathPart).width;
+
+          // Draw $ 
+          ctx.fillStyle = "#ffffff";
+          ctx.font = `${fontSize}px "Ubuntu Mono", "Consolas", monospace`;
+          ctx.fillText("$ ", currentX, y);
+          currentX += ctx.measureText("$ ").width;
 
           // Draw command in white
-          ctx.fillStyle = "#f8fafc";
-          ctx.fillText(commandText, paddingLeft + promptWidth, y);
+          ctx.fillText(commandText, currentX, y);
           return;
         }
       }
 
       // Normal line drawing
-      ctx.fillStyle = line.color;
+      ctx.fillStyle = line.color === "#cbd5e1" || line.color === "#f8fafc" ? "#ffffff" : line.color;
+      ctx.font = `${fontSize}px "Ubuntu Mono", "Consolas", monospace`;
       ctx.fillText(line.text, paddingLeft, y);
     });
 
@@ -1475,12 +1486,14 @@ export default function IDEPage() {
             <div
               id="terminal_body"
               onClick={handleTerminalClick}
-              className="flex-1 overflow-y-auto p-4 font-mono text-xs leading-relaxed text-[#D4D4D4] bg-black scrollbar-thin cursor-text"
+              style={{ fontFamily: 'var(--font-ubuntu), monospace' }}
+              className="flex-1 overflow-y-auto p-4 text-[15px] leading-relaxed text-[#D4D4D4] bg-[#1e1e1e] scrollbar-thin cursor-text"
             >
               {terminalLogs.length === 0 ? (
-                <div className="text-[#666] text-[11px]">
+                <div className="text-white text-[15px]">
                   <span>
-                    <span className="text-[#50fa7b]">{terminalUser}@{terminalHost}</span>:<span className="text-[#8be9fd]">~</span>$ 
+                    <span className="text-[#00BCD4] mr-1.5 text-[14px]">●</span>
+                    <span className="text-[#4ade80] font-bold">{terminalUser}@{terminalHost}</span>:<span className="text-[#3b82f6] font-bold">~</span>$ 
                   </span>
                   <span className="animate-pulse text-white">_</span>
                   <div className="mt-2 text-[10px] opacity-70">
@@ -1493,8 +1506,11 @@ export default function IDEPage() {
                     if (log.type === "command") {
                       const pathPart = log.path ? `~/${log.path}` : "~";
                       return (
-                        <div key={idx} className="text-[#50fa7b]">
-                          <span>{terminalUser}@{terminalHost}</span>:<span className="text-[#8be9fd]">{pathPart}</span>$ <span className="text-white">{log.text}</span>
+                        <div key={idx} className="text-white text-[15px]">
+                          <span>
+                            <span className="text-[#00BCD4] mr-1.5 text-[14px]">●</span>
+                            <span className="text-[#4ade80] font-bold">{terminalUser}@{terminalHost}</span>:<span className="text-[#3b82f6] font-bold">{pathPart}</span>$ {log.text}
+                          </span>
                         </div>
                       );
                     }
@@ -1514,7 +1530,7 @@ export default function IDEPage() {
                     }
                     if (log.type === "program-output") {
                       return (
-                        <div key={idx} className="whitespace-pre-wrap text-white">
+                        <div key={idx} className="whitespace-pre-wrap text-white text-[15px]">
                           {log.text}
                         </div>
                       );
@@ -1564,10 +1580,11 @@ export default function IDEPage() {
  
                   {/* TRAILING ACTIVE PROMPT FOR FRESH ACTIONS */}
                   {executionState.status !== "running" && executionState.status !== "waiting_for_input" && !isRunning && (
-                    <div className="text-[#666] pt-1">
+                    <div className="text-white pt-1 text-[15px]">
                       <span>
-                        <span className="text-[#50fa7b]">{terminalUser}@{terminalHost}</span>:
-                        <span className="text-[#8be9fd]">
+                        <span className="text-[#00BCD4] mr-1.5 text-[14px]">●</span>
+                        <span className="text-[#4ade80] font-bold">{terminalUser}@{terminalHost}</span>:
+                        <span className="text-[#3b82f6] font-bold">
                           {activeFile ? `~/${getParentFolderPath(activeFile)}` : "~"}
                         </span>$${" "}
                       </span>
