@@ -45,162 +45,49 @@ interface TerminalLog {
 // Default Seed File System
 const DEFAULT_FS: FSItem[] = [
   {
-    id: "folder-1",
-    name: "Lab-1",
+    id: "folder-welcome",
+    name: "Welcome",
     type: "folder",
     parentId: null,
   },
   {
-    id: "file-1",
-    name: "main.cpp",
+    id: "file-tutorial",
+    name: "tutorial.md",
     type: "file",
-    parentId: "folder-1",
+    parentId: "folder-welcome",
+    content: `# Welcome to TU Compiler
+
+TU Compiler is a modern, browser-based C/C++ IDE designed for Tribhuvan University students.
+
+## Getting Started
+1. Click on \`welcome.cpp\` in the left sidebar to open it.
+2. Click the green **RUN** button to compile and execute the code.
+3. Check the terminal below for the output!
+
+## Features
+- **Integrated Terminal**: Interactive terminal experience.
+- **Export**: Click "Save Output(.png)" to download a clean image of your terminal session.
+- **Persistent Storage**: Your files are automatically saved in your browser.
+`,
+  },
+  {
+    id: "file-welcome-cpp",
+    name: "welcome.cpp",
+    type: "file",
+    parentId: "folder-welcome",
     content: `#include <iostream>
-#include <iomanip>
-#include <string>
 
 using namespace std;
 
 int main() {
-    int type;
-    double basicSalary, netSalary;
-
-    cout << "Enter employee type (1-Permanent, 2-Contract): ";
-    if (!(cin >> type)) {
-        cout << "\\nInvalid employee type input!" << endl;
-        return 1;
-    }
-
-    cout << "Enter basic salary: ";
-    if (!(cin >> basicSalary)) {
-        cout << "\\nInvalid basic salary input!" << endl;
-        return 1;
-    }
-
-    if (type == 1) {
-        netSalary = basicSalary * 1.10; // 10% bonus for permanent
-    } else if (type == 2) {
-        netSalary = basicSalary * 1.05; // 5% bonus for contract
-    } else {
-        cout << "\\nUnknown employee type selected!" << endl;
-        return 1;
-    }
-
-    cout << "\\n====================================\\n";
-    cout << "Employee Type : " << (type == 1 ? "Permanent" : "Contract") << "\\n";
-    cout << "Basic Salary  : " << fixed << setprecision(2) << basicSalary << "\\n";
-    cout << "Net Salary    : " << fixed << setprecision(2) << netSalary << "\\n";
     cout << "====================================\\n";
-
-    return 0;
-}
-`,
-  },
-  {
-    id: "file-2",
-    name: "README.md",
-    type: "file",
-    parentId: "folder-1",
-    content: `# Lab 1: Employee Salary Calculator
-
-This is a simple C++ console program to calculate net salary based on the basic salary and employee type.
-
-## Project Structure
-- \`main.cpp\`: Source code for the salary calculator.
-
-## Instructions
-1. Select \`main.cpp\` in the folder explorer.
-2. Click the green **Run** button.
-3. Enter inputs in the integrated terminal.
-4. Export the final terminal output as a screenshot image using the **Save Output** button.
-`,
-  },
-  {
-    id: "folder-2",
-    name: "Lab-2",
-    type: "folder",
-    parentId: null,
-  },
-  {
-    id: "file-3",
-    name: "converter.cpp",
-    type: "file",
-    parentId: "folder-2",
-    content: `#include <iostream>
-
-using namespace std;
-
-int main() {
-    int choice;
-    double temp, converted;
-
-    cout << "--- Temperature Converter ---\\n";
-    cout << "1. Fahrenheit to Celsius\\n";
-    cout << "2. Celsius to Fahrenheit\\n";
-    cout << "Choose option (1-2): ";
-    if (!(cin >> choice)) return 1;
-
-    cout << "Enter temperature value: ";
-    if (!(cin >> temp)) return 1;
-
-    if (choice == 1) {
-        converted = (temp - 32) * 5.0 / 9.0;
-        cout << temp << " F is equal to " << converted << " C\\n";
-    } else if (choice == 2) {
-        converted = (temp * 9.0 / 5.0) + 32;
-        cout << temp << " C is equal to " << converted << " F\\n";
-    } else {
-        cout << "Invalid conversion option selected.\\n";
-    }
-
-    return 0;
-}
-`,
-  },
-  {
-    id: "folder-3",
-    name: "Lab-3",
-    type: "folder",
-    parentId: null,
-  },
-  {
-    id: "file-4",
-    name: "sorting.c",
-    type: "file",
-    parentId: "folder-3",
-    content: `#include <stdio.h>
-
-void bubbleSort(int arr[], int n) {
-    for (int i = 0; i < n - 1; i++) {
-        for (int j = 0; j < n - i - 1; j++) {
-            if (arr[j] > arr[j + 1]) {
-                int temp = arr[j];
-                arr[j] = arr[j + 1];
-                arr[j + 1] = temp;
-            }
-        }
-    }
-}
-
-int main() {
-    int arr[5];
-    printf("Enter 5 integers to sort:\\n");
-    for (int i = 0; i < 5; i++) {
-        printf("Value %d: ", i + 1);
-        if (scanf("%d", &arr[i]) != 1) {
-            printf("Invalid integer input!\\n");
-            return 1;
-        }
-    }
-
-    bubbleSort(arr, 5);
-
-    printf("\\nSorted array in ascending order:\\n[ ");
-    for (int i = 0; i < 5; i++) {
-        printf("%d ", arr[i]);
-    }
-    printf("]\\n");
-
+    cout << "      Welcome to TU Compiler!       \\n";
+    cout << "====================================\\n";
+    cout << "\\n";
+    cout << "Your modern, browser-based C/C++ IDE.\\n";
+    cout << "Start writing your code here.\\n";
+    cout << "\\n";
+    
     return 0;
 }
 `,
