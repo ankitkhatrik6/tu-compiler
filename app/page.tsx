@@ -22,6 +22,8 @@ import {
   RotateCcw,
   Check,
   AlertTriangle,
+  Moon,
+  Sun,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -102,6 +104,7 @@ export default function IDEPage() {
   const [terminalUser, setTerminalUser] = useState<string>("admin");
   const [terminalHost, setTerminalHost] = useState<string>("tucompiler");
   const [showTerminalConfig, setShowTerminalConfig] = useState(false);
+  const [theme, setTheme] = useState<"dark" | "light">("dark");
 
   // Custom Delete and Alert Dialog States for sandboxed iframe safety
   const [deleteConfirmation, setDeleteConfirmation] = useState<{
@@ -177,6 +180,9 @@ export default function IDEPage() {
       const savedHost = localStorage.getItem("cpp_ide_host");
       if (savedHost) setTerminalHost(savedHost);
 
+      const savedTheme = localStorage.getItem("cpp_ide_theme");
+      if (savedTheme) setTheme(savedTheme as "dark" | "light");
+
       const savedFs = localStorage.getItem("cpp_ide_fs");
       if (savedFs) {
         try {
@@ -202,6 +208,14 @@ export default function IDEPage() {
 
     return () => clearTimeout(timer);
   }, []);
+
+  const toggleTheme = () => {
+    setTheme((prevTheme) => {
+      const nextTheme = prevTheme === "dark" ? "light" : "dark";
+      localStorage.setItem("cpp_ide_theme", nextTheme);
+      return nextTheme;
+    });
+  };
 
   // Save VFS changes to local storage
   const saveFsToLocalStorage = (newFs: FSItem[]) => {
@@ -648,7 +662,7 @@ export default function IDEPage() {
     ctx.imageSmoothingQuality = "high";
 
     // Draw background
-    ctx.fillStyle = "#1e1e1e"; // Dark slate terminal bg
+    ctx.fillStyle = theme === "dark" ? "#1e1e1e" : "#ffffff";
     ctx.fillRect(0, 0, canvasWidth, canvasHeight);
 
     // Render lines of text
@@ -693,19 +707,25 @@ export default function IDEPage() {
           currentX += ctx.measureText(pathPart).width;
 
           // Draw $ 
-          ctx.fillStyle = "#ffffff";
+          ctx.fillStyle = theme === "dark" ? "#ffffff" : "#000000";
           ctx.font = `${fontSize}px "Ubuntu Mono", "Consolas", monospace`;
           ctx.fillText("$ ", currentX, y);
           currentX += ctx.measureText("$ ").width;
 
-          // Draw command in white
+          // Draw command
           ctx.fillText(commandText, currentX, y);
           return;
         }
       }
 
       // Normal line drawing
-      ctx.fillStyle = line.color === "#cbd5e1" || line.color === "#f8fafc" ? "#ffffff" : line.color;
+      let finalColor = line.color;
+      if (theme === "light") {
+          finalColor = "#000000";
+      } else if (line.color === "#cbd5e1" || line.color === "#f8fafc") {
+          finalColor = "#ffffff";
+      }
+      ctx.fillStyle = finalColor;
       ctx.font = `${fontSize}px "Ubuntu Mono", "Consolas", monospace`;
       ctx.fillText(line.text, paddingLeft, y);
     });
@@ -757,9 +777,9 @@ export default function IDEPage() {
                   setExpandedFolders((prev) => ({ ...prev, [node.id]: !prev[node.id] }));
                 }}
                 title={getItemFullPath(node)}
-                className="flex items-center justify-between group py-1.5 px-2 hover:bg-[#2A2A2A] cursor-pointer select-none transition-colors border-l-2 border-transparent"
+                className="flex items-center justify-between group py-1.5 px-2 hover:bg-[var(--bg-hover)] cursor-pointer select-none transition-colors border-l-2 border-transparent"
               >
-                <div className="flex items-center space-x-2 text-[#666] min-w-0">
+                <div className="flex items-center space-x-2 text-[var(--text-dim)] min-w-0">
                   {isExpanded ? (
                     <ChevronDown className="w-3.5 h-3.5 flex-shrink-0 text-[#999]" />
                   ) : (
@@ -781,13 +801,13 @@ export default function IDEPage() {
                         type="text"
                         value={renameValue}
                         onChange={(e) => setRenameValue(e.target.value)}
-                        className="bg-[#121212] border border-[#3A3A3A] rounded text-xs px-1.5 py-0.5 text-zinc-100 outline-none w-28 font-mono"
+                        className="bg-[var(--bg-main)] border border-[var(--border-active)] rounded text-xs px-1.5 py-0.5 text-[var(--text-strong)] outline-none w-28 font-mono"
                         autoFocus
                         onBlur={() => setRenamingId(null)}
                       />
                     </form>
                   ) : (
-                    <span className="text-xs font-mono font-medium truncate text-[#CCC]">{node.name}</span>
+                    <span className="text-xs font-mono font-medium truncate text-[var(--text-light)]">{node.name}</span>
                   )}
                 </div>
 
@@ -801,7 +821,7 @@ export default function IDEPage() {
                         setCreatorInput({ visible: true, type: "file", parentId: node.id, value: "" });
                       }}
                       title="New File"
-                      className="p-1 text-[#666] hover:text-[#CCC] hover:bg-[#2D2D2D] rounded"
+                      className="p-1 text-[var(--text-dim)] hover:text-[var(--text-light)] hover:bg-[var(--bg-active)] rounded"
                     >
                       <FilePlus className="w-3.5 h-3.5" />
                     </button>
@@ -812,7 +832,7 @@ export default function IDEPage() {
                         setCreatorInput({ visible: true, type: "folder", parentId: node.id, value: "" });
                       }}
                       title="New Folder"
-                      className="p-1 text-[#666] hover:text-[#CCC] hover:bg-[#2D2D2D] rounded"
+                      className="p-1 text-[var(--text-dim)] hover:text-[var(--text-light)] hover:bg-[var(--bg-active)] rounded"
                     >
                       <FolderPlus className="w-3.5 h-3.5" />
                     </button>
@@ -823,14 +843,14 @@ export default function IDEPage() {
                         setRenameValue(node.name);
                       }}
                       title="Rename"
-                      className="p-1 text-[#666] hover:text-[#CCC] hover:bg-[#2D2D2D] rounded"
+                      className="p-1 text-[var(--text-dim)] hover:text-[var(--text-light)] hover:bg-[var(--bg-active)] rounded"
                     >
                       <Edit3 className="w-3.5 h-3.5" />
                     </button>
                     <button
                       onClick={(e) => handleDeleteItem(node.id, e)}
                       title="Delete"
-                      className="p-1 text-red-400/70 hover:text-red-400 hover:bg-[#2D2D2D] rounded"
+                      className="p-1 text-red-400/70 hover:text-red-400 hover:bg-[var(--bg-active)] rounded"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
@@ -840,7 +860,7 @@ export default function IDEPage() {
 
               {/* Collapsed/Expanded Content */}
               {isExpanded && (
-                <div className="border-l border-[#2A2A2A] ml-3.5 my-0.5">
+                <div className="border-l border-[var(--border-main)] ml-3.5 my-0.5">
                   {renderExplorerNode(nodes, node.id, depth + 1)}
                 </div>
               )}
@@ -858,11 +878,11 @@ export default function IDEPage() {
                 }
               }}
               title={getItemFullPath(node)}
-              className={`flex items-center justify-between group py-1.5 px-2 hover:bg-[#2A2A2A] cursor-pointer select-none transition-colors border-l-2 ${
-                isActive ? "border-[#4A9eff] bg-[#2D2D2D]" : "border-transparent"
+              className={`flex items-center justify-between group py-1.5 px-2 hover:bg-[var(--bg-hover)] cursor-pointer select-none transition-colors border-l-2 ${
+                isActive ? "border-[#4A9eff] bg-[var(--bg-active)]" : "border-transparent"
               }`}
             >
-              <div className="flex items-center space-x-2 text-[#CCC] min-w-0">
+              <div className="flex items-center space-x-2 text-[var(--text-light)] min-w-0">
                 {node.name.endsWith(".md") ? (
                   <FileText className="w-4 h-4 text-blue-400 flex-shrink-0" />
                 ) : (
@@ -879,7 +899,7 @@ export default function IDEPage() {
                       type="text"
                       value={renameValue}
                       onChange={(e) => setRenameValue(e.target.value)}
-                      className="bg-[#121212] border border-[#3A3A3A] rounded text-xs px-1.5 py-0.5 text-zinc-100 outline-none w-28 font-mono"
+                      className="bg-[var(--bg-main)] border border-[var(--border-active)] rounded text-xs px-1.5 py-0.5 text-[var(--text-strong)] outline-none w-28 font-mono"
                       autoFocus
                       onBlur={() => setRenamingId(null)}
                     />
@@ -887,7 +907,7 @@ export default function IDEPage() {
                 ) : (
                   <span
                     className={`text-xs font-mono truncate ${
-                      isActive ? "text-white font-medium" : "text-[#D1D1D1]"
+                      isActive ? "text-[var(--text-strong)] font-medium" : "text-[var(--text-main)]"
                     }`}
                   >
                     {node.name}
@@ -905,14 +925,14 @@ export default function IDEPage() {
                       setRenameValue(node.name);
                     }}
                     title="Rename"
-                    className="p-0.5 text-[#666] hover:text-[#CCC] hover:bg-[#2D2D2D] rounded"
+                    className="p-0.5 text-[var(--text-dim)] hover:text-[var(--text-light)] hover:bg-[var(--bg-active)] rounded"
                   >
                     <Edit3 className="w-3 h-3" />
                   </button>
                   <button
                     onClick={(e) => handleDeleteItem(node.id, e)}
                     title="Delete"
-                    className="p-0.5 text-red-400/70 hover:text-red-400 hover:bg-[#2D2D2D] rounded"
+                    className="p-0.5 text-red-400/70 hover:text-red-400 hover:bg-[var(--bg-active)] rounded"
                   >
                     <Trash2 className="w-3 h-3" />
                   </button>
@@ -927,7 +947,7 @@ export default function IDEPage() {
 
   if (!mounted) {
     return (
-      <div className="min-h-screen bg-[#121212] flex flex-col items-center justify-center font-mono text-[#AAA] space-y-4">
+      <div className="min-h-screen bg-[var(--bg-main)] flex flex-col items-center justify-center font-mono text-[var(--text-muted)] space-y-4">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#4A9eff]"></div>
         <div className="text-xs uppercase tracking-widest font-mono">Initializing TU Compiler...</div>
       </div>
@@ -935,10 +955,10 @@ export default function IDEPage() {
   }
 
   return (
-    <div id="ide_container" className="flex flex-col h-screen w-full bg-[#121212] text-[#D1D1D1] overflow-hidden font-sans">
+    <div id="ide_container" className={`flex flex-col h-screen w-full bg-[var(--bg-main)] text-[var(--text-main)] overflow-hidden font-sans ${theme === "dark" ? "dark" : ""}`}>
       
       {/* PROFESSIONAL IDE TOP HEADER */}
-      <header id="header" className="flex items-center justify-between px-4 h-12 bg-[#181818] border-b border-[#2A2A2A] flex-shrink-0">
+      <header id="header" className="flex items-center justify-between px-4 h-12 bg-[var(--bg-panel)] border-b border-[var(--border-main)] flex-shrink-0">
         <div className="flex items-center space-x-3 select-none">
           <Image
             src="/logo.png"
@@ -949,7 +969,7 @@ export default function IDEPage() {
             className="h-8 w-auto object-contain"
           />
           <div>
-            <h1 className="text-sm font-mono font-bold tracking-tight text-white">
+            <h1 className="text-sm font-mono font-bold tracking-tight text-[var(--text-strong)]">
               TU <span className="text-[#4A9eff]">Compiler</span>
             </h1>
           </div>
@@ -957,13 +977,20 @@ export default function IDEPage() {
 
         {/* Global Compile Action Center */}
         <div className="flex items-center space-x-2">
+          <button
+            onClick={toggleTheme}
+            className="p-1.5 text-[var(--text-dim)] hover:text-[var(--text-strong)] hover:bg-[var(--bg-hover)] rounded transition-colors mr-2"
+            title={theme === "dark" ? "Switch to Light Mode" : "Switch to Dark Mode"}
+          >
+            {theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+          </button>
           {activeFile ? (
             <div className="flex items-center space-x-2">
-              <div className="hidden sm:flex items-center gap-2 text-[12px] bg-[#2D2D2D] px-2.5 py-1 rounded border border-[#3A3A3A]">
+              <div className="hidden sm:flex items-center gap-2 text-[12px] bg-[var(--bg-active)] px-2.5 py-1 rounded border border-[var(--border-active)]">
                 <span className="text-[#519aba] font-bold uppercase text-[10px]">
                   {activeFile.name.endsWith(".md") ? "MD" : "C++"}
                 </span>
-                <span className="text-white font-medium truncate max-w-[150px]">
+                <span className="text-[var(--text-strong)] font-medium truncate max-w-[150px]">
                   {activeFile.name}
                 </span>
               </div>
@@ -973,30 +1000,30 @@ export default function IDEPage() {
                 disabled={isRunning || !activeFile.name.match(/\.(cpp|c|cc|h)$/)}
                 className={`flex items-center space-x-1.5 px-4 py-1.5 rounded text-xs font-mono font-bold transition-all shadow-sm ${
                   activeFile.name.match(/\.(cpp|c|cc|h)$/)
-                    ? "bg-[#107C10] hover:bg-[#0B5A0B] text-white cursor-pointer active:scale-95"
-                    : "bg-[#181818] border border-[#333] text-[#666] cursor-not-allowed"
+                    ? "bg-[#107C10] hover:bg-[#0B5A0B] text-[var(--text-strong)] cursor-pointer active:scale-95"
+                    : "bg-[var(--bg-panel)] border border-[var(--border-light)] text-[var(--text-dim)] cursor-not-allowed"
                 }`}
                 title={activeFile.name.match(/\.(cpp|c|cc|h)$/) ? "Compile & Run Program" : "Only C/C++ files can be compiled"}
               >
-                <Play className={`w-3.5 h-3.5 ${isRunning ? "animate-spin text-white" : "text-white"}`} />
+                <Play className={`w-3.5 h-3.5 ${isRunning ? "animate-spin text-[var(--text-strong)]" : "text-[var(--text-strong)]"}`} />
                 <span>{isRunning ? "RUNNING" : "RUN"}</span>
               </button>
             </div>
           ) : (
-            <span className="text-xs font-mono text-[#666]">No active file</span>
+            <span className="text-xs font-mono text-[var(--text-dim)]">No active file</span>
           )}
         </div>
       </header>
 
       {/* MOBILE HEADER TAB TOGGLES */}
       {isMobile && (
-        <div id="mobile_toggles" className="flex items-center bg-[#181818] border-b border-[#2A2A2A] flex-shrink-0 p-1 gap-1">
+        <div id="mobile_toggles" className="flex items-center bg-[var(--bg-panel)] border-b border-[var(--border-main)] flex-shrink-0 p-1 gap-1">
           <button
             onClick={() => setActiveMobileTab("explorer")}
             className={`flex-1 py-1.5 text-center text-xs font-mono font-semibold transition-all rounded border ${
               activeMobileTab === "explorer"
-                ? "bg-[#2D2D2D] text-white border-[#3A3A3A]"
-                : "text-[#666] border-transparent hover:text-[#CCC]"
+                ? "bg-[var(--bg-active)] text-[var(--text-strong)] border-[var(--border-active)]"
+                : "text-[var(--text-dim)] border-transparent hover:text-[var(--text-light)]"
             }`}
           >
             Files
@@ -1005,8 +1032,8 @@ export default function IDEPage() {
             onClick={() => setActiveMobileTab("editor")}
             className={`flex-1 py-1.5 text-center text-xs font-mono font-semibold transition-all rounded border ${
               activeMobileTab === "editor"
-                ? "bg-[#2D2D2D] text-white border-[#3A3A3A]"
-                : "text-[#666] border-transparent hover:text-[#CCC]"
+                ? "bg-[var(--bg-active)] text-[var(--text-strong)] border-[var(--border-active)]"
+                : "text-[var(--text-dim)] border-transparent hover:text-[var(--text-light)]"
             }`}
           >
             Editor
@@ -1015,8 +1042,8 @@ export default function IDEPage() {
             onClick={() => setActiveMobileTab("terminal")}
             className={`flex-1 py-1.5 text-center text-xs font-mono font-semibold transition-all rounded border relative ${
               activeMobileTab === "terminal"
-                ? "bg-[#2D2D2D] text-white border-[#3A3A3A]"
-                : "text-[#666] border-transparent hover:text-[#CCC]"
+                ? "bg-[var(--bg-active)] text-[var(--text-strong)] border-[var(--border-active)]"
+                : "text-[var(--text-dim)] border-transparent hover:text-[var(--text-light)]"
             }`}
           >
             Terminal
@@ -1041,25 +1068,25 @@ export default function IDEPage() {
               : sidebarCollapsed
               ? "w-0 overflow-hidden"
               : "w-[240px]"
-          } border-r border-[#2A2A2A] bg-[#181818] flex flex-col flex-shrink-0 transition-all duration-200`}
+          } border-r border-[var(--border-main)] bg-[var(--bg-panel)] flex flex-col flex-shrink-0 transition-all duration-200`}
         >
           {/* Explorer Tools Title */}
-          <div className="flex items-center justify-between px-3 py-2 border-b border-[#2A2A2A] flex-shrink-0">
-            <span className="text-[10px] font-bold tracking-widest uppercase font-mono text-[#666]">
+          <div className="flex items-center justify-between px-3 py-2 border-b border-[var(--border-main)] flex-shrink-0">
+            <span className="text-[10px] font-bold tracking-widest uppercase font-mono text-[var(--text-dim)]">
               Project Explorer
             </span>
             <div className="flex items-center space-x-1">
               <button
                 onClick={() => setCreatorInput({ visible: true, type: "file", parentId: null, value: "" })}
                 title="Create root file"
-                className="p-1 text-[#666] hover:text-[#CCC] hover:bg-[#2A2A2A] rounded transition-colors"
+                className="p-1 text-[var(--text-dim)] hover:text-[var(--text-light)] hover:bg-[var(--bg-hover)] rounded transition-colors"
               >
                 <FilePlus className="w-3.5 h-3.5" />
               </button>
               <button
                 onClick={() => setCreatorInput({ visible: true, type: "folder", parentId: null, value: "" })}
                 title="Create root folder"
-                className="p-1 text-[#666] hover:text-[#CCC] hover:bg-[#2A2A2A] rounded transition-colors"
+                className="p-1 text-[var(--text-dim)] hover:text-[var(--text-light)] hover:bg-[var(--bg-hover)] rounded transition-colors"
               >
                 <FolderPlus className="w-3.5 h-3.5" />
               </button>
@@ -1073,17 +1100,17 @@ export default function IDEPage() {
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: "auto" }}
                 exit={{ opacity: 0, height: 0 }}
-                className="p-2 border-b border-[#2A2A2A] bg-[#121212] flex-shrink-0"
+                className="p-2 border-b border-[var(--border-main)] bg-[var(--bg-main)] flex-shrink-0"
               >
                 <form onSubmit={handleCreateItem} className="flex flex-col space-y-1.5">
                   <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-mono text-[#666] uppercase font-semibold">
+                    <span className="text-[10px] font-mono text-[var(--text-dim)] uppercase font-semibold">
                       New {creatorInput.type}
                     </span>
                     <button
                       type="button"
                       onClick={() => setCreatorInput({ visible: false, type: "file", parentId: null, value: "" })}
-                      className="text-[#666] hover:text-[#CCC]"
+                      className="text-[var(--text-dim)] hover:text-[var(--text-light)]"
                     >
                       <X className="w-3 h-3" />
                     </button>
@@ -1094,12 +1121,12 @@ export default function IDEPage() {
                       placeholder={creatorInput.type === "file" ? "main.cpp" : "Lab-Folder"}
                       value={creatorInput.value}
                       onChange={(e) => setCreatorInput((p) => ({ ...p, value: e.target.value }))}
-                      className="bg-black border border-[#3A3A3A] rounded px-2 py-1 text-xs text-zinc-200 outline-none flex-1 font-mono focus:border-[#4A9eff]"
+                      className="bg-[var(--bg-main)] border border-[var(--border-active)] rounded px-2 py-1 text-xs text-[var(--text-strong)] outline-none flex-1 font-mono focus:border-[#4A9eff]"
                       autoFocus
                     />
                     <button
                       type="submit"
-                      className="bg-[#2D2D2D] hover:bg-[#3A3A3A] border border-[#3A3A3A] rounded px-2 text-xs text-[#CCC] font-mono flex items-center justify-center cursor-pointer"
+                      className="bg-[var(--bg-active)] hover:bg-[var(--border-active)] border border-[var(--border-active)] rounded px-2 text-xs text-[var(--text-light)] font-mono flex items-center justify-center cursor-pointer"
                     >
                       OK
                     </button>
@@ -1112,7 +1139,7 @@ export default function IDEPage() {
           {/* VFS Tree Explorer */}
           <div className="flex-1 overflow-y-auto py-2">
             {fs.length === 0 ? (
-              <div className="text-center py-8 px-4 text-[#666] font-mono text-xs">
+              <div className="text-center py-8 px-4 text-[var(--text-dim)] font-mono text-xs">
                 No folders or files. Click icons to add!
               </div>
             ) : (
@@ -1137,10 +1164,10 @@ export default function IDEPage() {
             id="editor_area"
             className={`${
               isMobile && activeMobileTab === "terminal" ? "hidden" : "flex-1"
-            } flex flex-col min-h-0 bg-[#1E1E1E] relative`}
+            } flex flex-col min-h-0 bg-[var(--bg-editor)] relative`}
           >
             {/* Editor Tabs row */}
-            <div className="flex items-center justify-between h-10 bg-[#181818] border-b border-[#2A2A2A] overflow-x-auto flex-shrink-0 px-2">
+            <div className="flex items-center justify-between h-10 bg-[var(--bg-panel)] border-b border-[var(--border-main)] overflow-x-auto flex-shrink-0 px-2">
               <div className="flex items-center min-w-0 h-full">
                 {openTabsList.map((tab) => (
                   <div
@@ -1148,8 +1175,8 @@ export default function IDEPage() {
                     onClick={() => setActiveFileId(tab.id)}
                     className={`group flex items-center space-x-2 px-3 py-1 rounded border cursor-pointer select-none transition-colors text-[12px] font-mono relative h-7 mr-1.5 ${
                       activeFileId === tab.id
-                        ? "bg-[#2D2D2D] text-white border-[#3A3A3A]"
-                        : "bg-transparent text-[#666] border-transparent hover:text-[#CCC] hover:bg-[#2A2A2A]"
+                        ? "bg-[var(--bg-active)] text-[var(--text-strong)] border-[var(--border-active)]"
+                        : "bg-transparent text-[var(--text-dim)] border-transparent hover:text-[var(--text-light)] hover:bg-[var(--bg-hover)]"
                     }`}
                   >
                     <span className="text-[#519aba] font-bold text-[10px] uppercase">C++</span>
@@ -1167,7 +1194,7 @@ export default function IDEPage() {
                           }
                         }
                       }}
-                      className="text-[#666] hover:text-[#CCC] rounded p-0.5"
+                      className="text-[var(--text-dim)] hover:text-[var(--text-light)] rounded p-0.5"
                     >
                       <X className="w-3 h-3" />
                     </button>
@@ -1179,7 +1206,7 @@ export default function IDEPage() {
               {!isMobile && (
                 <button
                   onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-                  className="p-1.5 text-[#666] hover:text-[#CCC] hover:bg-[#2A2A2A] rounded mr-2"
+                  className="p-1.5 text-[var(--text-dim)] hover:text-[var(--text-light)] hover:bg-[var(--bg-hover)] rounded mr-2"
                   title={sidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
                 >
                   {sidebarCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeftIcon className="w-4 h-4" />}
@@ -1199,7 +1226,7 @@ export default function IDEPage() {
                       ? "c"
                       : "cpp"
                   }
-                  theme="vs-dark"
+                  theme={theme === "dark" ? "vs-dark" : "light"}
                   value={activeFile.content || ""}
                   onChange={handleEditorChange}
                   options={{
@@ -1218,13 +1245,13 @@ export default function IDEPage() {
                     cursorStyle: "line",
                   }}
                   loading={
-                    <div className="flex h-full items-center justify-center text-xs font-mono text-[#666]">
+                    <div className="flex h-full items-center justify-center text-xs font-mono text-[var(--text-dim)]">
                       Loading Editor Engine...
                     </div>
                   }
                 />
               ) : (
-                <div className="flex flex-col items-center justify-center h-full text-[#666] font-mono text-center px-4">
+                <div className="flex flex-col items-center justify-center h-full text-[var(--text-dim)] font-mono text-center px-4">
                   <FileCode className="w-12 h-12 text-[#333] mb-2" />
                   <p className="text-xs max-w-sm">
                     No open files. Select a file from the explorer sidebar to begin coding.
@@ -1242,14 +1269,14 @@ export default function IDEPage() {
                 ? activeMobileTab === "terminal"
                   ? "flex-1"
                   : "hidden"
-                : "h-[240px] border-t border-[#333]"
-            } bg-black flex flex-col min-h-0 overflow-hidden select-none`}
+                : "h-[240px] border-t border-[var(--border-light)]"
+            } bg-[var(--bg-main)] flex flex-col min-h-0 overflow-hidden select-none`}
           >
             {/* Terminal Header Toolbar */}
-            <div className="flex items-center justify-between px-4 h-9 bg-[#121212] border-b border-[#2A2A2A] flex-shrink-0 select-none">
+            <div className="flex items-center justify-between px-4 h-9 bg-[var(--bg-main)] border-b border-[var(--border-main)] flex-shrink-0 select-none">
               <div className="flex items-center space-x-4">
                 <span className="text-[11px] font-bold uppercase tracking-wider text-[#999]">Terminal</span>
-                <span className="text-[11px] text-[#666] font-mono">bash (v5.0.17)</span>
+                <span className="text-[11px] text-[var(--text-dim)] font-mono">bash (v5.0.17)</span>
               </div>
 
               {/* Action shortcuts */}
@@ -1258,8 +1285,8 @@ export default function IDEPage() {
                   onClick={() => setShowTerminalConfig(!showTerminalConfig)}
                   className={`flex items-center space-x-1 px-2 py-1 rounded border text-[10px] font-mono transition-colors cursor-pointer ${
                     showTerminalConfig
-                      ? "bg-[#2D2D2D] text-[#4A9eff] border-[#4A9eff]/50"
-                      : "text-[#AAA] border-[#333] hover:bg-[#2A2A2A]"
+                      ? "bg-[var(--bg-active)] text-[#4A9eff] border-[#4A9eff]/50"
+                      : "text-[var(--text-muted)] border-[var(--border-light)] hover:bg-[var(--bg-hover)]"
                   }`}
                   title="Configure Username and Hostname Prompt"
                 >
@@ -1271,15 +1298,15 @@ export default function IDEPage() {
                   <>
                     <button
                       onClick={handleExportTerminalImage}
-                      className="flex items-center space-x-1.5 text-[10px] text-[#AAA] border border-[#333] px-2 py-1 rounded hover:bg-[#2A2A2A] font-mono transition-colors cursor-pointer"
+                      className="flex items-center space-x-1.5 text-[10px] text-[var(--text-muted)] border border-[var(--border-light)] px-2 py-1 rounded hover:bg-[var(--bg-hover)] font-mono transition-colors cursor-pointer"
                       title="Save terminal as high-fidelity PNG"
                     >
-                      <Download className="w-3 h-3 text-[#AAA]" />
+                      <Download className="w-3 h-3 text-[var(--text-muted)]" />
                       <span>Save Output (.PNG)</span>
                     </button>
                     <button
                       onClick={handleResetTerminal}
-                      className="p-1 text-[#666] hover:text-[#CCC] hover:bg-[#2A2A2A] rounded transition-colors cursor-pointer"
+                      className="p-1 text-[var(--text-dim)] hover:text-[var(--text-light)] hover:bg-[var(--bg-hover)] rounded transition-colors cursor-pointer"
                       title="Clear Terminal history"
                     >
                       <RotateCcw className="w-3 h-3" />
@@ -1296,11 +1323,11 @@ export default function IDEPage() {
                   initial={{ height: 0, opacity: 0 }}
                   animate={{ height: "auto", opacity: 1 }}
                   exit={{ height: 0, opacity: 0 }}
-                  className="bg-[#121212] border-b border-[#2A2A2A] px-4 py-2 flex flex-col md:flex-row md:items-center md:justify-between gap-3 text-xs font-mono flex-shrink-0"
+                  className="bg-[var(--bg-main)] border-b border-[var(--border-main)] px-4 py-2 flex flex-col md:flex-row md:items-center md:justify-between gap-3 text-xs font-mono flex-shrink-0"
                 >
                   <div className="flex flex-wrap items-center gap-4">
                     <div className="flex items-center space-x-2">
-                      <span className="text-[#666] text-[11px]">User:</span>
+                      <span className="text-[var(--text-dim)] text-[11px]">User:</span>
                       <input
                         type="text"
                         value={terminalUser}
@@ -1309,12 +1336,12 @@ export default function IDEPage() {
                           setTerminalUser(val || "user");
                           localStorage.setItem("cpp_ide_user", val || "user");
                         }}
-                        className="bg-black border border-[#333] rounded px-2 py-0.5 text-white outline-none w-28 focus:border-[#4A9eff] text-center"
+                        className="bg-[var(--bg-main)] border border-[var(--border-light)] rounded px-2 py-0.5 text-[var(--text-strong)] outline-none w-28 focus:border-[#4A9eff] text-center"
                         placeholder="username"
                       />
                     </div>
                     <div className="flex items-center space-x-2">
-                      <span className="text-[#666] text-[11px]">Host:</span>
+                      <span className="text-[var(--text-dim)] text-[11px]">Host:</span>
                       <input
                         type="text"
                         value={terminalHost}
@@ -1323,7 +1350,7 @@ export default function IDEPage() {
                           setTerminalHost(val || "host");
                           localStorage.setItem("cpp_ide_host", val || "host");
                         }}
-                        className="bg-black border border-[#333] rounded px-2 py-0.5 text-white outline-none w-28 focus:border-[#4A9eff] text-center"
+                        className="bg-[var(--bg-main)] border border-[var(--border-light)] rounded px-2 py-0.5 text-[var(--text-strong)] outline-none w-28 focus:border-[#4A9eff] text-center"
                         placeholder="hostname"
                       />
                     </div>
@@ -1338,7 +1365,7 @@ export default function IDEPage() {
                         localStorage.setItem("cpp_ide_user", "ankit");
                         localStorage.setItem("cpp_ide_host", "ascol");
                       }}
-                      className="px-2 py-0.5 bg-[#1E1E1E] border border-[#2D2D2D] hover:bg-[#2D2D2D] rounded text-[#CCC] text-[10px] transition-colors cursor-pointer"
+                      className="px-2 py-0.5 bg-[var(--bg-editor)] border border-[#2D2D2D] hover:bg-[var(--bg-active)] rounded text-[var(--text-light)] text-[10px] transition-colors cursor-pointer"
                     >
                       ankit@ascol
                     </button>
@@ -1349,7 +1376,7 @@ export default function IDEPage() {
                         localStorage.setItem("cpp_ide_user", "root");
                         localStorage.setItem("cpp_ide_host", "localhost");
                       }}
-                      className="px-2 py-0.5 bg-[#1E1E1E] border border-[#2D2D2D] hover:bg-[#2D2D2D] rounded text-[#CCC] text-[10px] transition-colors cursor-pointer"
+                      className="px-2 py-0.5 bg-[var(--bg-editor)] border border-[#2D2D2D] hover:bg-[var(--bg-active)] rounded text-[var(--text-light)] text-[10px] transition-colors cursor-pointer"
                     >
                       root@localhost
                     </button>
@@ -1360,7 +1387,7 @@ export default function IDEPage() {
                         localStorage.setItem("cpp_ide_user", "developer");
                         localStorage.setItem("cpp_ide_host", "cppide");
                       }}
-                      className="px-2 py-0.5 bg-[#1E1E1E] border border-[#2D2D2D] hover:bg-[#2D2D2D] rounded text-[#CCC] text-[10px] transition-colors cursor-pointer"
+                      className="px-2 py-0.5 bg-[var(--bg-editor)] border border-[#2D2D2D] hover:bg-[var(--bg-active)] rounded text-[var(--text-light)] text-[10px] transition-colors cursor-pointer"
                     >
                       developer@cppide
                     </button>
@@ -1374,15 +1401,15 @@ export default function IDEPage() {
               id="terminal_body"
               onClick={handleTerminalClick}
               style={{ fontFamily: 'var(--font-ubuntu), monospace' }}
-              className="flex-1 overflow-y-auto p-4 text-[15px] leading-relaxed text-[#D4D4D4] bg-[#1e1e1e] scrollbar-thin cursor-text"
+              className={`flex-1 overflow-y-auto p-4 text-[15px] leading-relaxed scrollbar-thin cursor-text ${theme === "dark" ? "bg-[#1e1e1e] text-[#D4D4D4]" : "bg-white text-black"}`}
             >
               {terminalLogs.length === 0 ? (
-                <div className="text-white text-[15px]">
+                <div className={`${theme === "dark" ? "text-white" : "text-black"} text-[15px]`}>
                   <span>
                     <span className="text-[#00BCD4] mr-1.5 text-[14px]">●</span>
                     <span className="text-[#4ade80] font-bold">{terminalUser}@{terminalHost}</span>:<span className="text-[#3b82f6] font-bold">~</span>$ 
                   </span>
-                  <span className="animate-pulse text-white">_</span>
+                  <span className="animate-pulse">_</span>
                   <div className="mt-2 text-[10px] opacity-70">
                     Console ready. Select a file and click &quot;RUN&quot; above to compile and run your code.
                   </div>
@@ -1393,7 +1420,7 @@ export default function IDEPage() {
                     if (log.type === "command") {
                       const pathPart = log.path ? `~/${log.path}` : "~";
                       return (
-                        <div key={idx} className="text-white text-[15px]">
+                        <div key={idx} className="text-[var(--text-strong)] text-[15px]">
                           <span>
                             <span className="text-[#00BCD4] mr-1.5 text-[14px]">●</span>
                             <span className="text-[#4ade80] font-bold">{terminalUser}@{terminalHost}</span>:<span className="text-[#3b82f6] font-bold">{pathPart}</span>$ {log.text}
@@ -1417,7 +1444,7 @@ export default function IDEPage() {
                     }
                     if (log.type === "program-output") {
                       return (
-                        <div key={idx} className="whitespace-pre-wrap text-white text-[15px]">
+                        <div key={idx} className="whitespace-pre-wrap text-[var(--text-strong)] text-[15px]">
                           {log.text}
                         </div>
                       );
@@ -1434,7 +1461,7 @@ export default function IDEPage() {
  
                   {/* ACTIVE USER INPUT PROMPT (INLINE IN TERMINAL) */}
                   {executionState.status === "waiting_for_input" && (
-                    <div className="flex items-center space-x-1 py-1 bg-black border border-[#333] px-2 rounded">
+                    <div className="flex items-center space-x-1 py-1 bg-[var(--bg-main)] border border-[var(--border-light)] px-2 rounded">
                       <span className="text-[#50fa7b] font-semibold flex-shrink-0 animate-pulse">
                         INPUT &gt;
                       </span>
@@ -1444,7 +1471,7 @@ export default function IDEPage() {
                           type="text"
                           value={currentInputVal}
                           onChange={(e) => setCurrentInputVal(e.target.value)}
-                          className="w-full bg-transparent text-white font-mono text-xs border-none outline-none focus:ring-0 p-0 m-0"
+                          className="w-full bg-transparent text-[var(--text-strong)] font-mono text-xs border-none outline-none focus:ring-0 p-0 m-0"
                           autoFocus
                           disabled={isRunning}
                           placeholder={
@@ -1459,7 +1486,7 @@ export default function IDEPage() {
  
                   {/* Program running loading indicator */}
                   {isRunning && (
-                    <div className="text-[#666] animate-pulse text-[11px] flex items-center space-x-2 py-1">
+                    <div className="text-[var(--text-dim)] animate-pulse text-[11px] flex items-center space-x-2 py-1">
                       <div className="w-1.5 h-1.5 bg-[#107C10] rounded-full animate-ping" />
                       <span>Evaluating and step-tracing program execution...</span>
                     </div>
@@ -1467,7 +1494,7 @@ export default function IDEPage() {
  
                   {/* TRAILING ACTIVE PROMPT FOR FRESH ACTIONS */}
                   {executionState.status !== "running" && executionState.status !== "waiting_for_input" && !isRunning && (
-                    <div className="text-white pt-1 text-[15px]">
+                    <div className="text-[var(--text-strong)] pt-1 text-[15px]">
                       <span>
                         <span className="text-[#00BCD4] mr-1.5 text-[14px]">●</span>
                         <span className="text-[#4ade80] font-bold">{terminalUser}@{terminalHost}</span>:
@@ -1475,7 +1502,7 @@ export default function IDEPage() {
                           {activeFile ? `~/${getParentFolderPath(activeFile)}` : "~"}
                         </span>$${" "}
                       </span>
-                      <span className="animate-pulse text-white">_</span>
+                      <span className="animate-pulse text-[var(--text-strong)]">_</span>
                     </div>
                   )}
 
@@ -1504,7 +1531,7 @@ export default function IDEPage() {
                   itemType: "file",
                 })
               }
-              className="absolute inset-0 bg-black/60 backdrop-blur-xs"
+              className="absolute inset-0 bg-[var(--bg-main)]/60 backdrop-blur-xs"
             />
 
             {/* Dialog Content */}
@@ -1512,7 +1539,7 @@ export default function IDEPage() {
               initial={{ scale: 0.95, opacity: 0, y: 10 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.95, opacity: 0, y: 10 }}
-              className="relative w-full max-w-md bg-[#181818] border border-red-500/30 rounded-lg shadow-2xl p-6 overflow-hidden z-10"
+              className="relative w-full max-w-md bg-[var(--bg-panel)] border border-red-500/30 rounded-lg shadow-2xl p-6 overflow-hidden z-10"
             >
               {/* Glowing accent border top */}
               <div className="absolute top-0 left-0 right-0 h-1 bg-red-500" />
@@ -1522,12 +1549,12 @@ export default function IDEPage() {
                   <AlertTriangle className="w-6 h-6" />
                 </div>
                 <div className="flex-1">
-                  <h3 className="text-sm font-bold text-white uppercase tracking-wider font-mono">
+                  <h3 className="text-sm font-bold text-[var(--text-strong)] uppercase tracking-wider font-mono">
                     Confirm Deletion
                   </h3>
-                  <p className="mt-2 text-xs text-[#AAA] leading-relaxed font-mono">
+                  <p className="mt-2 text-xs text-[var(--text-muted)] leading-relaxed font-mono">
                     Are you sure you want to permanently delete the {deleteConfirmation.itemType}{" "}
-                    <span className="text-white font-mono font-semibold">
+                    <span className="text-[var(--text-strong)] font-mono font-semibold">
                       &ldquo;{deleteConfirmation.itemName}&rdquo;
                     </span>
                     ? All nested contents will also be removed. This action cannot be undone.
@@ -1545,7 +1572,7 @@ export default function IDEPage() {
                       itemType: "file",
                     })
                   }
-                  className="px-4 py-2 text-xs font-mono font-medium rounded text-[#AAA] hover:text-white bg-[#2A2A2A] hover:bg-[#333] border border-[#333] transition-colors cursor-pointer"
+                  className="px-4 py-2 text-xs font-mono font-medium rounded text-[var(--text-muted)] hover:text-[var(--text-strong)] bg-[var(--bg-hover)] hover:bg-[var(--border-light)] border border-[var(--border-light)] transition-colors cursor-pointer"
                 >
                   Cancel
                 </button>
@@ -1555,7 +1582,7 @@ export default function IDEPage() {
                       executeDeleteItem(deleteConfirmation.itemId);
                     }
                   }}
-                  className="px-4 py-2 text-xs font-mono font-medium rounded text-white bg-red-600 hover:bg-red-500 border border-red-700 transition-colors cursor-pointer flex items-center space-x-1.5"
+                  className="px-4 py-2 text-xs font-mono font-medium rounded text-[var(--text-strong)] bg-red-600 hover:bg-red-500 border border-red-700 transition-colors cursor-pointer flex items-center space-x-1.5"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                   <span>Delete</span>
@@ -1576,7 +1603,7 @@ export default function IDEPage() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setCustomAlert({ isOpen: false, title: "", message: "" })}
-              className="absolute inset-0 bg-black/60 backdrop-blur-xs"
+              className="absolute inset-0 bg-[var(--bg-main)]/60 backdrop-blur-xs"
             />
 
             {/* Dialog Content */}
@@ -1584,7 +1611,7 @@ export default function IDEPage() {
               initial={{ scale: 0.95, opacity: 0, y: 10 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.95, opacity: 0, y: 10 }}
-              className="relative w-full max-w-md bg-[#181818] border border-[#333] rounded-lg shadow-2xl p-6 overflow-hidden z-10"
+              className="relative w-full max-w-md bg-[var(--bg-panel)] border border-[var(--border-light)] rounded-lg shadow-2xl p-6 overflow-hidden z-10"
             >
               {/* Glowing accent border top */}
               <div className="absolute top-0 left-0 right-0 h-1 bg-[#4A9eff]" />
@@ -1594,10 +1621,10 @@ export default function IDEPage() {
                   <AlertTriangle className="w-6 h-6" />
                 </div>
                 <div className="flex-1">
-                  <h3 className="text-sm font-bold text-white uppercase tracking-wider font-mono">
+                  <h3 className="text-sm font-bold text-[var(--text-strong)] uppercase tracking-wider font-mono">
                     {customAlert.title}
                   </h3>
-                  <p className="mt-2 text-xs text-[#AAA] leading-relaxed font-mono">
+                  <p className="mt-2 text-xs text-[var(--text-muted)] leading-relaxed font-mono">
                     {customAlert.message}
                   </p>
                 </div>
@@ -1606,7 +1633,7 @@ export default function IDEPage() {
               <div className="mt-6 flex items-center justify-end">
                 <button
                   onClick={() => setCustomAlert({ isOpen: false, title: "", message: "" })}
-                  className="px-5 py-2 text-xs font-mono font-medium rounded text-white bg-[#4A9eff] hover:bg-[#3b8ee5] transition-colors cursor-pointer"
+                  className="px-5 py-2 text-xs font-mono font-medium rounded text-[var(--text-strong)] bg-[#4A9eff] hover:bg-[#3b8ee5] transition-colors cursor-pointer"
                 >
                   OK
                 </button>

@@ -29,3 +29,37 @@
   scrollbar-width: thin;
   scrollbar-color: #333333 #181818;
 }
+
+@layer base {
+  :root {
+    --bg-main: #ffffff;
+    --bg-panel: #f8fafc;
+    --bg-editor: #ffffff;
+    --bg-hover: #e2e8f0;
+    --bg-active: #cbd5e1;
+    --border-main: #e2e8f0;
+    --border-active: #94a3b8;
+    --border-light: #cbd5e1;
+    --text-main: #0f172a;
+    --text-muted: #64748b;
+    --text-dim: #94a3b8;
+    --text-light: #475569;
+    --text-strong: #000000;
+  }
+
+  .dark {
+    --bg-main: #121212;
+    --bg-panel: #181818;
+    --bg-editor: #1E1E1E;
+    --bg-hover: #2A2A2A;
+    --bg-active: #2D2D2D;
+    --border-main: #2A2A2A;
+    --border-active: #3A3A3A;
+    --border-light: #333333;
+    --text-main: #D1D1D1;
+    --text-muted: #AAAAAA;
+    --text-dim: #666666;
+    --text-light: #CCCCCC;
+    --text-strong: #ffffff;
+  }
+}
