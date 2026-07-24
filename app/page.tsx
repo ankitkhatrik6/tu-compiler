@@ -306,7 +306,15 @@ export default function IDEPage() {
       name: finalName,
       type: creatorInput.type,
       parentId: creatorInput.parentId,
-      ...(creatorInput.type === "file" ? { content: creatorInput.value.endsWith(".md") ? "# New Markdown File" : `// New ${finalName} program\n#include <iostream>\n\nint main() {\n    std::cout << "Hello!" << std::endl;\n    return 0;\n}\n` } : {}),
+      ...(creatorInput.type === "file"
+        ? {
+            content: finalName.endsWith(".md")
+              ? "# New Markdown File\n"
+              : finalName.endsWith(".c")
+              ? `// New ${finalName} program\n#include <stdio.h>\n\nint main() {\n    printf("Hello from C!\\n");\n    return 0;\n}\n`
+              : `// New ${finalName} program\n#include <iostream>\n\nusing namespace std;\n\nint main() {\n    cout << "Hello from C++!" << endl;\n    return 0;\n}\n`,
+          }
+        : {}),
     };
 
     const newFs = [...fs, newItem];
@@ -885,6 +893,8 @@ export default function IDEPage() {
               <div className="flex items-center space-x-2 text-[var(--text-light)] min-w-0">
                 {node.name.endsWith(".md") ? (
                   <FileText className="w-4 h-4 text-blue-400 flex-shrink-0" />
+                ) : node.name.endsWith(".c") ? (
+                  <span className="text-[#e34c26] font-bold text-[11px] font-mono select-none w-4 text-center flex-shrink-0">C</span>
                 ) : (
                   <span className="text-[#519aba] font-bold text-[11px] font-mono select-none w-4 text-center flex-shrink-0">++</span>
                 )}
@@ -988,7 +998,7 @@ export default function IDEPage() {
             <div className="flex items-center space-x-2">
               <div className="hidden sm:flex items-center gap-2 text-[12px] bg-[var(--bg-active)] px-2.5 py-1 rounded border border-[var(--border-active)]">
                 <span className="text-[#519aba] font-bold uppercase text-[10px]">
-                  {activeFile.name.endsWith(".md") ? "MD" : "C++"}
+                  {activeFile.name.endsWith(".md") ? "MD" : activeFile.name.endsWith(".c") ? "C" : "C++"}
                 </span>
                 <span className="text-[var(--text-strong)] font-medium truncate max-w-[150px]">
                   {activeFile.name}
@@ -1179,7 +1189,9 @@ export default function IDEPage() {
                         : "bg-transparent text-[var(--text-dim)] border-transparent hover:text-[var(--text-light)] hover:bg-[var(--bg-hover)]"
                     }`}
                   >
-                    <span className="text-[#519aba] font-bold text-[10px] uppercase">C++</span>
+                    <span className="text-[#519aba] font-bold text-[10px] uppercase">
+                      {tab.name.endsWith(".md") ? "MD" : tab.name.endsWith(".c") ? "C" : "C++"}
+                    </span>
                     <span className="font-medium">{tab.name}</span>
                     <button
                       onClick={(e) => {
