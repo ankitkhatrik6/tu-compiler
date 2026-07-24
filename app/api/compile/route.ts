@@ -59,10 +59,10 @@ CRITICAL DIRECTIVES FOR ACCURACY:
 8. OUTPUT FORMATTING: The output property must contain the exact, character-for-character console text. Do not add any compiler banners, helper instructions, JSON formatting, or unsolicited diagnostic logs in the "output" string. Make it look perfectly like a clean command prompt execution.`;
 
     let otherFilesContext = "";
-    if (Array.isArray(files) && files.length > 0) {
+    if (files && files.length > 0) {
       otherFilesContext = "OTHER FILES IN PROJECT WORKSPACE (use these to resolve headers and local #includes):\n";
       files.forEach((f: any) => {
-        if (f && f.name && f.name !== filename && typeof f.content === "string") {
+        if (f.name !== filename) {
           otherFilesContext += `\n--- File: ${f.name} ---\n${f.content}\n--- End File: ${f.name} ---\n`;
         }
       });
@@ -83,78 +83,60 @@ ${JSON.stringify(inputs || [])}
 
 Return the structured JSON result representing the compilation status, output, and execution state according to the schema.`;
 
-    const reqConfig = {
-      systemInstruction,
-      temperature: 0.1,
-      responseMimeType: "application/json",
-      responseSchema: {
-        type: Type.OBJECT,
-        properties: {
-          compiled: {
-            type: Type.BOOLEAN,
-            description: "True if compilation succeeds, false if there are syntax/compiler errors.",
+    const response = await ai.models.generateContent({
+      model: "gemini-3.1-flash-lite",
+      contents: userPrompt,
+      config: {
+        systemInstruction,
+        temperature: 0.1, // low temperature for precise compilation & deterministic running simulation
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            compiled: {
+              type: Type.BOOLEAN,
+              description: "True if compilation succeeds, false if there are syntax/compiler errors.",
+            },
+            compileErrors: {
+              type: Type.STRING,
+              description: "G++ / GCC compiler error message if compilation fails, matching standard terminal GCC output. Empty if compiled is true.",
+            },
+            status: {
+              type: Type.STRING,
+              description: "Must be one of: 'exited', 'waiting_for_input', or 'runtime_error'.",
+            },
+            exitCode: {
+              type: Type.INTEGER,
+              description: "Process exit code (typically 0 for success). Required.",
+            },
+            runtimeError: {
+              type: Type.STRING,
+              description: "Description of the runtime error if status is 'runtime_error'.",
+            },
+            output: {
+              type: Type.STRING,
+              description: "The complete accumulated console output up to the current point, including echoed user inputs.",
+            },
+            executionTime: {
+              type: Type.NUMBER,
+              description: "A realistic execution time in seconds (e.g. 0.003). Small decimal number.",
+            },
+            promptedInputVar: {
+              type: Type.STRING,
+              description: "If status is 'waiting_for_input', a description of the variable requested.",
+            },
           },
-          compileErrors: {
-            type: Type.STRING,
-            description: "G++ / GCC compiler error message if compilation fails, matching standard terminal GCC output. Empty if compiled is true.",
-          },
-          status: {
-            type: Type.STRING,
-            description: "Must be one of: 'exited', 'waiting_for_input', or 'runtime_error'.",
-          },
-          exitCode: {
-            type: Type.INTEGER,
-            description: "Process exit code (typically 0 for success). Required.",
-          },
-          runtimeError: {
-            type: Type.STRING,
-            description: "Description of the runtime error if status is 'runtime_error'.",
-          },
-          output: {
-            type: Type.STRING,
-            description: "The complete accumulated console output up to the current point, including echoed user inputs.",
-          },
-          executionTime: {
-            type: Type.NUMBER,
-            description: "A realistic execution time in seconds (e.g. 0.003). Small decimal number.",
-          },
-          promptedInputVar: {
-            type: Type.STRING,
-            description: "If status is 'waiting_for_input', a description of the variable requested.",
-          },
+          required: ["compiled", "compileErrors", "status", "exitCode", "runtimeError", "output", "executionTime"],
         },
-        required: ["compiled", "compileErrors", "status", "exitCode", "runtimeError", "output", "executionTime"],
       },
-    };
+    });
 
-    let response;
-    try {
-      response = await ai.models.generateContent({
-        model: "gemini-2.5-flash",
-        contents: userPrompt,
-        config: reqConfig,
-      });
-    } catch (primaryErr) {
-      console.warn("Primary model gemini-2.5-flash failed, falling back to gemini-2.0-flash:", primaryErr);
-      response = await ai.models.generateContent({
-        model: "gemini-2.0-flash",
-        contents: userPrompt,
-        config: reqConfig,
-      });
+    const resultText = response.text;
+    if (!resultText) {
+      throw new Error("No response text from Gemini");
     }
 
-    const rawText = response.text || "";
-    if (!rawText.trim()) {
-      throw new Error("No response text from Gemini API");
-    }
-
-    // Sanitize JSON response if wrapped in markdown fence blocks
-    let cleanedText = rawText.trim();
-    if (cleanedText.startsWith("```")) {
-      cleanedText = cleanedText.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim();
-    }
-
-    const data = JSON.parse(cleanedText);
+    const data = JSON.parse(resultText.trim());
     return NextResponse.json(data);
   } catch (error: any) {
     console.error("Compile API error:", error);
