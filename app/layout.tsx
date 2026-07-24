@@ -84,9 +84,9 @@ export const metadata: Metadata = {
     creator: '@ankitkhatrik6',
   },
   icons: {
-    icon: '/logo.png',
-    shortcut: '/logo.png',
-    apple: '/logo.png',
+    icon: '/dark.png',
+    shortcut: '/dark.png',
+    apple: '/dark.png',
   },
   verification: {
     google: 'kV4VPBDYMLp7-qjktWPDpYWcNWjGsfLeTxkT_9J09B0',

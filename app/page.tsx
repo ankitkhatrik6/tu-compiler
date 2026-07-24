@@ -1013,7 +1013,7 @@ export default function IDEPage() {
       <header id="header" className="flex items-center justify-between px-4 h-12 bg-[var(--bg-panel)] border-b border-[var(--border-main)] flex-shrink-0">
         <div className="flex items-center space-x-3 select-none">
           <Image
-            src="/logo.png"
+            src={theme === "dark" ? "/light.png" : "/dark.png"}
             alt="TU Compiler"
             width={120}
             height={32}
