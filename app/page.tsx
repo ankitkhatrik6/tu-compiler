@@ -21,6 +21,7 @@ import {
   ChevronDown,
   RotateCcw,
   Check,
+  Copy,
   AlertTriangle,
   Moon,
   Sun,
@@ -128,6 +129,12 @@ export default function IDEPage() {
     title: "",
     message: "",
   });
+
+  const [toast, setToast] = useState<{ visible: boolean; message: string }>({ visible: false, message: "" });
+  const showToast = (message: string) => {
+    setToast({ visible: true, message });
+    setTimeout(() => setToast({ visible: false, message: "" }), 2500);
+  };
 
   // VFS States (Lazy initialized to satisfy strict React hook ESLint rules)
   const [fs, setFs] = useState<FSItem[]>(DEFAULT_FS);
@@ -585,6 +592,41 @@ export default function IDEPage() {
 
     // Trigger run with updated inputs
     triggerRunProgram(updatedInputs);
+  };
+
+  // Global Keyboard Shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Run shortcut (Ctrl/Cmd + Enter)
+      if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+        e.preventDefault();
+        if (activeFile && activeFile.name.match(/\.(cpp|c|cc|h)$/) && !isRunning) {
+          triggerRunProgram([]);
+        }
+      }
+      // Save shortcut (Ctrl/Cmd + S)
+      if ((e.ctrlKey || e.metaKey) && e.key === "s") {
+        e.preventDefault();
+        showToast("File saved locally");
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [activeFile, isRunning, fs, inputs]);
+
+  const handleCopyCode = () => {
+    if (activeFile?.content) {
+      navigator.clipboard.writeText(activeFile.content);
+      showToast("Code copied to clipboard");
+    }
+  };
+
+  const handleCopyTerminalOutput = () => {
+    const text = terminalLogs.map(l => l.text).join("\n");
+    if (text) {
+      navigator.clipboard.writeText(text);
+      showToast("Terminal output copied");
+    }
   };
 
   // Export terminal logs as perfect image
@@ -1214,16 +1256,27 @@ export default function IDEPage() {
                 ))}
               </div>
 
-              {/* Sidebar toggle button (Desktop only) */}
-              {!isMobile && (
-                <button
-                  onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-                  className="p-1.5 text-[var(--text-dim)] hover:text-[var(--text-light)] hover:bg-[var(--bg-hover)] rounded mr-2"
-                  title={sidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
-                >
-                  {sidebarCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeftIcon className="w-4 h-4" />}
-                </button>
-              )}
+              {/* Action buttons (Copy Code & Sidebar toggle) */}
+              <div className="flex items-center space-x-1 mr-2">
+                {activeFile && (
+                  <button
+                    onClick={handleCopyCode}
+                    className="p-1.5 text-[var(--text-dim)] hover:text-[var(--text-light)] hover:bg-[var(--bg-hover)] rounded"
+                    title="Copy Code"
+                  >
+                    <Copy className="w-4 h-4" />
+                  </button>
+                )}
+                {!isMobile && (
+                  <button
+                    onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+                    className="p-1.5 text-[var(--text-dim)] hover:text-[var(--text-light)] hover:bg-[var(--bg-hover)] rounded"
+                    title={sidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
+                  >
+                    {sidebarCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeftIcon className="w-4 h-4" />}
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* Monaco Instance */}
@@ -1308,6 +1361,14 @@ export default function IDEPage() {
 
                 {terminalLogs.length > 0 && (
                   <>
+                    <button
+                      onClick={handleCopyTerminalOutput}
+                      className="flex items-center space-x-1.5 text-[10px] text-[var(--text-muted)] border border-[var(--border-light)] px-2 py-1 rounded hover:bg-[var(--bg-hover)] font-mono transition-colors cursor-pointer hidden md:flex"
+                      title="Copy terminal output"
+                    >
+                      <Copy className="w-3 h-3 text-[var(--text-muted)]" />
+                      <span>Copy Output</span>
+                    </button>
                     <button
                       onClick={handleExportTerminalImage}
                       className="flex items-center space-x-1.5 text-[10px] text-[var(--text-muted)] border border-[var(--border-light)] px-2 py-1 rounded hover:bg-[var(--bg-hover)] font-mono transition-colors cursor-pointer"
@@ -1525,6 +1586,21 @@ export default function IDEPage() {
           </div>
         </div>
       </div>
+
+      {/* Global Toast Notification */}
+      <AnimatePresence>
+        {toast.visible && (
+          <motion.div
+            initial={{ opacity: 0, y: 50, x: "-50%" }}
+            animate={{ opacity: 1, y: 0, x: "-50%" }}
+            exit={{ opacity: 0, y: 50, x: "-50%" }}
+            className="fixed bottom-6 left-1/2 z-[100] bg-[var(--bg-active)] border border-[var(--border-active)] shadow-lg rounded-full px-4 py-2 flex items-center space-x-2"
+          >
+            <Check className="w-4 h-4 text-[#4ade80]" />
+            <span className="text-sm font-mono text-[var(--text-strong)]">{toast.message}</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Custom Delete Confirmation Modal */}
       <AnimatePresence>
