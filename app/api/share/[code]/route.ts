@@ -4,6 +4,8 @@ import path from 'path';
 import os from 'os';
 import { Redis } from '@upstash/redis';
 
+export const dynamic = 'force-dynamic';
+
 // Use /tmp in production (Vercel) to avoid EROFS read-only filesystem errors
 const DATA_DIR = process.env.NODE_ENV === 'production' 
   ? path.join(os.tmpdir(), 'tucompiler_data') 
@@ -30,18 +32,23 @@ export async function GET(request: Request, { params }: { params: Promise<{ code
     }
 
     if (redis) {
-      const shareData = await redis.get<{ items: any[], expiresAt: number }>(`share:${code}`);
-      
-      if (!shareData) {
-        return NextResponse.json({ error: 'Code not found' }, { status: 404 });
-      }
+      try {
+        const shareData = await redis.get<{ items: any[], expiresAt: number }>(`share:${code}`);
+        
+        if (!shareData) {
+          return NextResponse.json({ error: 'Code not found' }, { status: 404 });
+        }
 
-      if (shareData.expiresAt < Date.now()) {
-        await redis.del(`share:${code}`);
-        return NextResponse.json({ error: 'Code expired' }, { status: 410 });
-      }
+        if (shareData.expiresAt < Date.now()) {
+          await redis.del(`share:${code}`);
+          return NextResponse.json({ error: 'Code expired' }, { status: 410 });
+        }
 
-      return NextResponse.json({ items: shareData.items });
+        return NextResponse.json({ items: shareData.items, debug: { redis_active: true } });
+      } catch (err) {
+        console.error('Redis error:', err);
+        return NextResponse.json({ error: 'Redis fetch error. Please check your Upstash DB connection.' }, { status: 500 });
+      }
     } else {
       try {
         await fs.access(SHARES_FILE);

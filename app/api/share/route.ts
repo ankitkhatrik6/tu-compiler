@@ -4,6 +4,8 @@ import path from 'path';
 import os from 'os';
 import { Redis } from '@upstash/redis';
 
+export const dynamic = 'force-dynamic';
+
 // Use /tmp in production (Vercel) to avoid EROFS read-only filesystem errors
 const DATA_DIR = process.env.NODE_ENV === 'production' 
   ? path.join(os.tmpdir(), 'tucompiler_data') 
@@ -53,15 +55,20 @@ export async function POST(request: Request) {
     
     if (redis) {
       // Redis implementation
-      let isUnique = false;
-      do {
-        code = Math.floor(1000 + Math.random() * 9000).toString();
-        const exists = await redis.exists(`share:${code}`);
-        if (!exists) isUnique = true;
-      } while (!isUnique);
+      try {
+        let isUnique = false;
+        do {
+          code = Math.floor(1000 + Math.random() * 9000).toString();
+          const exists = await redis.exists(`share:${code}`);
+          if (!exists) isUnique = true;
+        } while (!isUnique);
 
-      // Save with 48 hours expiration (EX expects seconds)
-      await redis.set(`share:${code}`, { items, expiresAt }, { ex: 48 * 60 * 60 });
+        // Save with 48 hours expiration (EX expects seconds)
+        await redis.set(`share:${code}`, { items, expiresAt }, { ex: 48 * 60 * 60 });
+      } catch (err) {
+        console.error('Redis error:', err);
+        return NextResponse.json({ error: 'Redis storage error. Please check your Upstash DB connection.' }, { status: 500 });
+      }
     } else {
       // Local FileSystem implementation
       await ensureDataFile();
@@ -88,7 +95,11 @@ export async function POST(request: Request) {
       await fs.writeFile(SHARES_FILE, JSON.stringify(shares, null, 2), 'utf-8');
     }
 
-    return NextResponse.json({ code, expiresAt });
+    return NextResponse.json({ 
+      code, 
+      expiresAt, 
+      debug: { redis_active: !!redis } 
+    });
   } catch (error) {
     console.error('Error creating share:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
