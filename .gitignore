@@ -38,3 +38,6 @@ coverage/
 .vscode/
 *.swp
 *.swo
+
+# Data
+data/
