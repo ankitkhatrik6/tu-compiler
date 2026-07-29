@@ -11,10 +11,13 @@ const DATA_DIR = process.env.NODE_ENV === 'production'
 const SHARES_FILE = path.join(DATA_DIR, 'shares.json');
 
 // Initialize Redis if configured
-const redis = process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN
+const redisUrl = process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL;
+const redisToken = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN;
+
+const redis = redisUrl && redisToken
   ? new Redis({
-      url: process.env.KV_REST_API_URL,
-      token: process.env.KV_REST_API_TOKEN,
+      url: redisUrl,
+      token: redisToken,
     })
   : null;
 
