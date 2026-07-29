@@ -1,8 +1,12 @@
 import { NextResponse } from 'next/server';
 import fs from 'fs/promises';
 import path from 'path';
+import os from 'os';
 
-const DATA_DIR = path.join(process.cwd(), 'data');
+// Use /tmp in production (Vercel) to avoid EROFS read-only filesystem errors
+const DATA_DIR = process.env.NODE_ENV === 'production' 
+  ? path.join(os.tmpdir(), 'tucompiler_data') 
+  : path.join(process.cwd(), 'data');
 const SHARES_FILE = path.join(DATA_DIR, 'shares.json');
 
 async function ensureDataFile() {
