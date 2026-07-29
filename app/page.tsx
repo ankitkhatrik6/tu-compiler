@@ -25,6 +25,8 @@ import {
   AlertTriangle,
   Moon,
   Sun,
+  Share2,
+  DownloadCloud,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -140,6 +142,14 @@ export default function IDEPage() {
   const [fs, setFs] = useState<FSItem[]>(DEFAULT_FS);
   const [activeFileId, setActiveFileId] = useState<string | null>("file-1");
   const [openTabs, setOpenTabs] = useState<string[]>(["file-1"]);
+  
+  // Share & Import States
+  const [shareCode, setShareCode] = useState<string | null>(null);
+  const [shareExpiresAt, setShareExpiresAt] = useState<number | null>(null);
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [importCode, setImportCode] = useState("");
+  const [isSharing, setIsSharing] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
 
   const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>({
     "folder-1": true,
@@ -428,6 +438,94 @@ export default function IDEPage() {
       itemName: "",
       itemType: "file",
     });
+  };
+
+  // Share folder logic
+  const handleShareFolder = async (folderId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsSharing(true);
+    try {
+      // recursively collect all children + the folder itself
+      const getItemsToShare = (id: string): FSItem[] => {
+        const item = fs.find((i) => i.id === id);
+        if (!item) return [];
+        const children = fs.filter((i) => i.parentId === id);
+        let items = [item];
+        children.forEach((c) => {
+          items = [...items, ...getItemsToShare(c.id)];
+        });
+        return items;
+      };
+
+      const itemsToShare = getItemsToShare(folderId);
+      
+      const res = await fetch("/api/share", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ items: itemsToShare }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setShareCode(data.code);
+        if (data.expiresAt) setShareExpiresAt(data.expiresAt);
+      } else {
+        showToast(data.error || "Failed to share folder");
+      }
+    } catch (err) {
+      showToast("Error sharing folder");
+    } finally {
+      setIsSharing(false);
+    }
+  };
+
+  // Import folder logic
+  const handleImportFolder = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!importCode || importCode.length !== 4) {
+      showToast("Please enter a valid 4-digit code");
+      return;
+    }
+    setIsImporting(true);
+    try {
+      const res = await fetch(`/api/share/${importCode}`);
+      const data = await res.json();
+      
+      if (!res.ok) {
+        showToast(data.error || "Failed to import folder");
+        return;
+      }
+      
+      const importedItems: FSItem[] = data.items;
+      if (!importedItems || importedItems.length === 0) return;
+      
+      const idMap: Record<string, string> = {};
+      const newItems: FSItem[] = [];
+      const importedIds = new Set(importedItems.map(i => i.id));
+      
+      importedItems.forEach(item => {
+        const newId = `imported-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        idMap[item.id] = newId;
+      });
+      
+      importedItems.forEach(item => {
+        const isRoot = !item.parentId || !importedIds.has(item.parentId);
+        newItems.push({
+          ...item,
+          id: idMap[item.id],
+          parentId: isRoot ? null : idMap[item.parentId as string],
+        });
+      });
+      
+      const newFs = [...fs, ...newItems];
+      saveFsToLocalStorage(newFs);
+      setShowImportModal(false);
+      setImportCode("");
+      showToast("Folder imported successfully");
+    } catch (err) {
+      showToast("Error importing folder");
+    } finally {
+      setIsImporting(false);
+    }
   };
 
   // Editor Content Change Helper
@@ -898,6 +996,13 @@ export default function IDEPage() {
                       <Edit3 className="w-3.5 h-3.5" />
                     </button>
                     <button
+                      onClick={(e) => handleShareFolder(node.id, e)}
+                      title="Share Folder"
+                      className="p-1 text-[var(--text-dim)] hover:text-[#4A9eff] hover:bg-[var(--bg-active)] rounded"
+                    >
+                      <Share2 className="w-3.5 h-3.5" />
+                    </button>
+                    <button
                       onClick={(e) => handleDeleteItem(node.id, e)}
                       title="Delete"
                       className="p-1 text-red-400/70 hover:text-red-400 hover:bg-[var(--bg-active)] rounded"
@@ -1128,6 +1233,13 @@ export default function IDEPage() {
               Project Explorer
             </span>
             <div className="flex items-center space-x-1">
+              <button
+                onClick={() => setShowImportModal(true)}
+                title="Import shared folder"
+                className="p-1 text-[var(--text-dim)] hover:text-[#4A9eff] hover:bg-[var(--bg-hover)] rounded transition-colors mr-1"
+              >
+                <DownloadCloud className="w-3.5 h-3.5" />
+              </button>
               <button
                 onClick={() => setCreatorInput({ visible: true, type: "file", parentId: null, value: "" })}
                 title="Create root file"
@@ -1681,7 +1793,119 @@ export default function IDEPage() {
         )}
       </AnimatePresence>
 
-      {/* Custom Alert Dialog Modal */}
+      {/* Share Code Modal */}
+      <AnimatePresence>
+        {shareCode && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.95, y: 10 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.95, y: 10 }}
+              className="bg-[var(--bg-panel)] border border-[var(--border-main)] rounded-lg shadow-2xl p-6 max-w-sm w-full overflow-hidden relative"
+            >
+              <div className="absolute top-0 left-0 w-full h-1 bg-[#4A9eff]" />
+              <h3 className="text-lg font-bold text-[var(--text-strong)] mb-2 flex items-center">
+                <Share2 className="w-5 h-5 mr-2 text-[#4A9eff]" />
+                Folder Shared
+              </h3>
+              <p className="text-sm text-[var(--text-dim)] mb-4">
+                Your folder has been successfully shared. This code will expire on{" "}
+                <span className="font-semibold text-[var(--text-strong)]">
+                  {shareExpiresAt ? new Date(shareExpiresAt).toLocaleString(undefined, {
+                    dateStyle: 'medium',
+                    timeStyle: 'short'
+                  }) : "in 2 days"}
+                </span>.
+              </p>
+              <div className="flex items-center justify-center bg-[var(--bg-main)] border border-[var(--border-main)] rounded-lg p-4 mb-6">
+                <span className="text-4xl font-mono font-bold tracking-widest text-[#4A9eff]">
+                  {shareCode}
+                </span>
+              </div>
+              <div className="flex justify-end">
+                <button
+                  onClick={() => { setShareCode(null); setShareExpiresAt(null); }}
+                  className="px-4 py-2 bg-[#4A9eff] hover:bg-[#3A8ee0] text-white rounded text-sm font-medium transition-colors"
+                >
+                  Done
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Import Code Modal */}
+      <AnimatePresence>
+        {showImportModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.95, y: 10 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.95, y: 10 }}
+              className="bg-[var(--bg-panel)] border border-[var(--border-main)] rounded-lg shadow-2xl p-6 max-w-sm w-full overflow-hidden relative"
+            >
+              <div className="absolute top-0 left-0 w-full h-1 bg-[#4A9eff]" />
+              <h3 className="text-lg font-bold text-[var(--text-strong)] mb-2 flex items-center">
+                <DownloadCloud className="w-5 h-5 mr-2 text-[#4A9eff]" />
+                Import Shared Folder
+              </h3>
+              <p className="text-sm text-[var(--text-dim)] mb-4">
+                Enter the 4-digit code to import a shared folder.
+              </p>
+              <form onSubmit={handleImportFolder}>
+                <input
+                  type="text"
+                  placeholder="e.g. 1234"
+                  maxLength={4}
+                  value={importCode}
+                  onChange={(e) => setImportCode(e.target.value.replace(/[^0-9]/g, ''))}
+                  className="w-full bg-[var(--bg-main)] border border-[var(--border-active)] rounded-lg p-3 text-2xl font-mono text-center tracking-[0.5em] text-[var(--text-strong)] placeholder-[var(--text-dim)] outline-none focus:border-[#4A9eff] focus:ring-1 focus:ring-[#4A9eff] transition-all mb-6"
+                  autoFocus
+                />
+                <div className="flex justify-end space-x-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowImportModal(false);
+                      setImportCode("");
+                    }}
+                    className="px-4 py-2 hover:bg-[var(--bg-hover)] text-[var(--text-light)] rounded text-sm font-medium transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isImporting || importCode.length !== 4}
+                    className="px-4 py-2 bg-[#4A9eff] hover:bg-[#3A8ee0] disabled:opacity-50 disabled:cursor-not-allowed text-white rounded text-sm font-medium transition-colors flex items-center"
+                  >
+                    {isImporting ? (
+                      <>
+                        <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />
+                        Importing...
+                      </>
+                    ) : (
+                      "Import Folder"
+                    )}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Global Custom Alert Dialog Modal */}
       <AnimatePresence>
         {customAlert.isOpen && (
           <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
