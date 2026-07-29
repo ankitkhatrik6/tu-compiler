@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import fs from 'fs/promises';
 import path from 'path';
 import os from 'os';
+import { Redis } from '@upstash/redis';
 
 // Use /tmp in production (Vercel) to avoid EROFS read-only filesystem errors
 const DATA_DIR = process.env.NODE_ENV === 'production' 
@@ -9,7 +10,17 @@ const DATA_DIR = process.env.NODE_ENV === 'production'
   : path.join(process.cwd(), 'data');
 const SHARES_FILE = path.join(DATA_DIR, 'shares.json');
 
+// Initialize Redis if configured
+const redis = process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN
+  ? new Redis({
+      url: process.env.KV_REST_API_URL,
+      token: process.env.KV_REST_API_TOKEN,
+    })
+  : null;
+
 async function ensureDataFile() {
+  if (redis) return; // Not needed for Redis
+
   try {
     await fs.access(DATA_DIR);
   } catch {
@@ -31,34 +42,50 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Invalid payload' }, { status: 400 });
     }
 
-    await ensureDataFile();
-
-    const fileContent = await fs.readFile(SHARES_FILE, 'utf-8');
-    const shares = JSON.parse(fileContent);
-
-    // Clean up expired codes
     const now = Date.now();
-    for (const key in shares) {
-      if (shares[key].expiresAt < now) {
-        delete shares[key];
-      }
-    }
-
+    const expiresAt = now + 48 * 60 * 60 * 1000;
+    
     // Generate unique 4-digit code
     let code: string;
-    do {
-      code = Math.floor(1000 + Math.random() * 9000).toString();
-    } while (shares[code]);
+    
+    if (redis) {
+      // Redis implementation
+      let isUnique = false;
+      do {
+        code = Math.floor(1000 + Math.random() * 9000).toString();
+        const exists = await redis.exists(`share:${code}`);
+        if (!exists) isUnique = true;
+      } while (!isUnique);
 
-    // Save with 48 hours expiration
-    shares[code] = {
-      items,
-      expiresAt: now + 48 * 60 * 60 * 1000,
-    };
+      // Save with 48 hours expiration (EX expects seconds)
+      await redis.set(`share:${code}`, { items, expiresAt }, { ex: 48 * 60 * 60 });
+    } else {
+      // Local FileSystem implementation
+      await ensureDataFile();
 
-    await fs.writeFile(SHARES_FILE, JSON.stringify(shares, null, 2), 'utf-8');
+      const fileContent = await fs.readFile(SHARES_FILE, 'utf-8');
+      const shares = JSON.parse(fileContent);
 
-    return NextResponse.json({ code, expiresAt: shares[code].expiresAt });
+      // Clean up expired codes
+      for (const key in shares) {
+        if (shares[key].expiresAt < now) {
+          delete shares[key];
+        }
+      }
+
+      do {
+        code = Math.floor(1000 + Math.random() * 9000).toString();
+      } while (shares[code]);
+
+      shares[code] = {
+        items,
+        expiresAt,
+      };
+
+      await fs.writeFile(SHARES_FILE, JSON.stringify(shares, null, 2), 'utf-8');
+    }
+
+    return NextResponse.json({ code, expiresAt });
   } catch (error) {
     console.error('Error creating share:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
