@@ -5,7 +5,7 @@ import path from 'path';
 const DATA_DIR = path.join(process.cwd(), 'data');
 const SHARES_FILE = path.join(DATA_DIR, 'shares.json');
 
-export async function GET(request: Request, { params }: { params: { code: string } }) {
+export async function GET(request: Request, { params }: { params: Promise<{ code: string }> }) {
   try {
     const { code } = await params;
 
