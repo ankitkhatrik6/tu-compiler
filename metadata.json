@@ -1,0 +1,7 @@
+{
+  "name": "TU Compiler",
+  "version": "1.1.1",
+  "description": "Browser-Based C/C++ IDE with integrated terminal made for Tribhuvan University students.",
+  "author": "ankitkhatrik6",
+  "license": "MIT"
+}
