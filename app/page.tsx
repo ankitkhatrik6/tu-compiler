@@ -30,6 +30,8 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { FolderShareModal } from "@/components/FolderShareModal";
+import { FolderImportModal } from "@/components/FolderImportModal";
 
 // Virtual File System Item Schema
 interface FSItem {
@@ -151,6 +153,25 @@ export default function IDEPage() {
   const [isSharing, setIsSharing] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
 
+  // New Supabase-powered Folder Sharing & QR Import Modal States
+  const [folderShareModal, setFolderShareModal] = useState<{
+    isOpen: boolean;
+    folderId: string;
+    folderName: string;
+  }>({
+    isOpen: false,
+    folderId: "",
+    folderName: "",
+  });
+
+  const [folderImportModal, setFolderImportModal] = useState<{
+    isOpen: boolean;
+    initialCode: string;
+  }>({
+    isOpen: false,
+    initialCode: "",
+  });
+
   const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>({
     "folder-1": true,
     "folder-2": false,
@@ -221,10 +242,34 @@ export default function IDEPage() {
       } else {
         localStorage.setItem("cpp_ide_fs", JSON.stringify(DEFAULT_FS));
       }
+
+      // Check if URL contains share code parameter (e.g. ?share=A8K9ZP)
+      if (typeof window !== "undefined") {
+        const params = new URLSearchParams(window.location.search);
+        const codeParam = params.get("share") || params.get("import") || params.get("code");
+        if (codeParam) {
+          const cleanCode = codeParam.trim().toUpperCase().slice(0, 6);
+          if (cleanCode.length === 6) {
+            setFolderImportModal({
+              isOpen: true,
+              initialCode: cleanCode,
+            });
+          }
+        }
+      }
     }, 0);
 
     return () => clearTimeout(timer);
   }, []);
+
+  // Sync document root class with theme for Tailwind dark mode classes
+  useEffect(() => {
+    if (theme === "dark") {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
+  }, [theme]);
 
   const toggleTheme = () => {
     setTheme((prevTheme) => {
@@ -440,91 +485,44 @@ export default function IDEPage() {
     });
   };
 
-  // Share folder logic
-  const handleShareFolder = async (folderId: string, e: React.MouseEvent) => {
+  // Trigger Folder Share Modal
+  const handleShareFolder = (folderId: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    setIsSharing(true);
-    try {
-      // recursively collect all children + the folder itself
-      const getItemsToShare = (id: string): FSItem[] => {
-        const item = fs.find((i) => i.id === id);
-        if (!item) return [];
-        const children = fs.filter((i) => i.parentId === id);
-        let items = [item];
-        children.forEach((c) => {
-          items = [...items, ...getItemsToShare(c.id)];
-        });
-        return items;
-      };
-
-      const itemsToShare = getItemsToShare(folderId);
-      
-      const res = await fetch("/api/share", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ items: itemsToShare }),
-      });
-      const data = await res.json();
-      if (res.ok) {
-        setShareCode(data.code);
-        if (data.expiresAt) setShareExpiresAt(data.expiresAt);
-      } else {
-        showToast(data.error || "Failed to share folder");
-      }
-    } catch (err) {
-      showToast("Error sharing folder");
-    } finally {
-      setIsSharing(false);
-    }
+    const folder = fs.find((item) => item.id === folderId);
+    if (!folder) return;
+    setFolderShareModal({
+      isOpen: true,
+      folderId: folder.id,
+      folderName: folder.name,
+    });
   };
 
-  // Import folder logic
-  const handleImportFolder = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!importCode || importCode.length !== 4) {
-      showToast("Please enter a valid 4-digit code");
-      return;
-    }
-    setIsImporting(true);
-    try {
-      const res = await fetch(`/api/share/${importCode}`);
-      const data = await res.json();
-      
-      if (!res.ok) {
-        showToast(data.error || "Failed to import folder");
-        return;
+  // Handle successful Folder Import from QR / 6-digit Code
+  const handleImportSuccess = (
+    importedItems: FSItem[],
+    importedFolderName: string
+  ) => {
+    const newFs = [...fs, ...importedItems];
+    saveFsToLocalStorage(newFs);
+
+    // Expand all newly imported subfolders
+    const importedFolderIds = importedItems
+      .filter((item) => item.type === "folder")
+      .map((item) => item.id);
+
+    setExpandedFolders((prev) => {
+      const updated = { ...prev };
+      importedFolderIds.forEach((id) => (updated[id] = true));
+      return updated;
+    });
+
+    // Automatically focus the first file in the imported folder if available
+    const firstImportedFile = importedItems.find((item) => item.type === "file");
+    if (firstImportedFile) {
+      setActiveFileId(firstImportedFile.id);
+      if (!openTabs.includes(firstImportedFile.id)) {
+        setOpenTabs((prev) => [...prev, firstImportedFile.id]);
       }
-      
-      const importedItems: FSItem[] = data.items;
-      if (!importedItems || importedItems.length === 0) return;
-      
-      const idMap: Record<string, string> = {};
-      const newItems: FSItem[] = [];
-      const importedIds = new Set(importedItems.map(i => i.id));
-      
-      importedItems.forEach(item => {
-        const newId = `imported-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-        idMap[item.id] = newId;
-      });
-      
-      importedItems.forEach(item => {
-        const isRoot = !item.parentId || !importedIds.has(item.parentId);
-        newItems.push({
-          ...item,
-          id: idMap[item.id],
-          parentId: isRoot ? null : idMap[item.parentId as string],
-        });
-      });
-      
-      const newFs = [...fs, ...newItems];
-      saveFsToLocalStorage(newFs);
-      setShowImportModal(false);
-      setImportCode("");
-      showToast("Folder imported successfully");
-    } catch (err) {
-      showToast("Error importing folder");
-    } finally {
-      setIsImporting(false);
     }
   };
 
@@ -1234,8 +1232,8 @@ export default function IDEPage() {
             </span>
             <div className="flex items-center space-x-1">
               <button
-                onClick={() => setShowImportModal(true)}
-                title="Import shared folder"
+                onClick={() => setFolderImportModal({ isOpen: true, initialCode: "" })}
+                title="Import shared folder via 6-digit code or QR"
                 className="p-1 text-[var(--text-dim)] hover:text-[#4A9eff] hover:bg-[var(--bg-hover)] rounded transition-colors mr-1"
               >
                 <DownloadCloud className="w-3.5 h-3.5" />
@@ -1793,117 +1791,6 @@ export default function IDEPage() {
         )}
       </AnimatePresence>
 
-      {/* Share Code Modal */}
-      <AnimatePresence>
-        {shareCode && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
-          >
-            <motion.div
-              initial={{ scale: 0.95, y: 10 }}
-              animate={{ scale: 1, y: 0 }}
-              exit={{ scale: 0.95, y: 10 }}
-              className="bg-[var(--bg-panel)] border border-[var(--border-main)] rounded-lg shadow-2xl p-6 max-w-sm w-full overflow-hidden relative"
-            >
-              <div className="absolute top-0 left-0 w-full h-1 bg-[#4A9eff]" />
-              <h3 className="text-lg font-bold text-[var(--text-strong)] mb-2 flex items-center">
-                <Share2 className="w-5 h-5 mr-2 text-[#4A9eff]" />
-                Folder Shared
-              </h3>
-              <p className="text-sm text-[var(--text-dim)] mb-4">
-                Your folder has been successfully shared. This code will expire on{" "}
-                <span className="font-semibold text-[var(--text-strong)]">
-                  {shareExpiresAt ? new Date(shareExpiresAt).toLocaleString(undefined, {
-                    dateStyle: 'medium',
-                    timeStyle: 'short'
-                  }) : "in 2 days"}
-                </span>.
-              </p>
-              <div className="flex items-center justify-center bg-[var(--bg-main)] border border-[var(--border-main)] rounded-lg p-4 mb-6">
-                <span className="text-4xl font-mono font-bold tracking-widest text-[#4A9eff]">
-                  {shareCode}
-                </span>
-              </div>
-              <div className="flex justify-end">
-                <button
-                  onClick={() => { setShareCode(null); setShareExpiresAt(null); }}
-                  className="px-4 py-2 bg-[#4A9eff] hover:bg-[#3A8ee0] text-white rounded text-sm font-medium transition-colors"
-                >
-                  Done
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Import Code Modal */}
-      <AnimatePresence>
-        {showImportModal && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
-          >
-            <motion.div
-              initial={{ scale: 0.95, y: 10 }}
-              animate={{ scale: 1, y: 0 }}
-              exit={{ scale: 0.95, y: 10 }}
-              className="bg-[var(--bg-panel)] border border-[var(--border-main)] rounded-lg shadow-2xl p-6 max-w-sm w-full overflow-hidden relative"
-            >
-              <div className="absolute top-0 left-0 w-full h-1 bg-[#4A9eff]" />
-              <h3 className="text-lg font-bold text-[var(--text-strong)] mb-2 flex items-center">
-                <DownloadCloud className="w-5 h-5 mr-2 text-[#4A9eff]" />
-                Import Shared Folder
-              </h3>
-              <p className="text-sm text-[var(--text-dim)] mb-4">
-                Enter the 4-digit code to import a shared folder.
-              </p>
-              <form onSubmit={handleImportFolder}>
-                <input
-                  type="text"
-                  placeholder="e.g. 1234"
-                  maxLength={4}
-                  value={importCode}
-                  onChange={(e) => setImportCode(e.target.value.replace(/[^0-9]/g, ''))}
-                  className="w-full bg-[var(--bg-main)] border border-[var(--border-active)] rounded-lg p-3 text-2xl font-mono text-center tracking-[0.5em] text-[var(--text-strong)] placeholder-[var(--text-dim)] outline-none focus:border-[#4A9eff] focus:ring-1 focus:ring-[#4A9eff] transition-all mb-6"
-                  autoFocus
-                />
-                <div className="flex justify-end space-x-3">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowImportModal(false);
-                      setImportCode("");
-                    }}
-                    className="px-4 py-2 hover:bg-[var(--bg-hover)] text-[var(--text-light)] rounded text-sm font-medium transition-colors"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={isImporting || importCode.length !== 4}
-                    className="px-4 py-2 bg-[#4A9eff] hover:bg-[#3A8ee0] disabled:opacity-50 disabled:cursor-not-allowed text-white rounded text-sm font-medium transition-colors flex items-center"
-                  >
-                    {isImporting ? (
-                      <>
-                        <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />
-                        Importing...
-                      </>
-                    ) : (
-                      "Import Folder"
-                    )}
-                  </button>
-                </div>
-              </form>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       {/* Global Custom Alert Dialog Modal */}
       <AnimatePresence>
@@ -1954,6 +1841,24 @@ export default function IDEPage() {
           </div>
         )}
       </AnimatePresence>
+
+      {/* Supabase Folder Sharing & QR Code Modals */}
+      <FolderShareModal
+        isOpen={folderShareModal.isOpen}
+        onClose={() => setFolderShareModal({ isOpen: false, folderId: "", folderName: "" })}
+        folderId={folderShareModal.folderId}
+        folderName={folderShareModal.folderName}
+        folderItems={fs}
+        onShowToast={showToast}
+      />
+
+      <FolderImportModal
+        isOpen={folderImportModal.isOpen}
+        onClose={() => setFolderImportModal({ isOpen: false, initialCode: "" })}
+        initialCode={folderImportModal.initialCode}
+        onImportSuccess={handleImportSuccess}
+        onShowToast={showToast}
+      />
     </div>
   );
 }

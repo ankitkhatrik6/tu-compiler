@@ -53,7 +53,7 @@ It uses the Gemini API under the hood to simulate a real GCC/G++ compiler and Li
 ### Prerequisites
 
 - Node.js 18+ installed
-- A Gemini API key — get one free at [aistudio.google.com](https://aistudio.google.com/apikey)
+- A Gemini API key
 
 ### Installation
 

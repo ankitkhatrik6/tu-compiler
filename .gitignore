@@ -41,3 +41,6 @@ coverage/
 
 # Data
 data/
+
+# IDE Metadata
+metadata.json
