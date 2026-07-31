@@ -14,6 +14,7 @@ import {
   ShieldCheck,
   Sparkles,
   Link2,
+  Clock,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
@@ -43,6 +44,8 @@ export const FolderShareModal: React.FC<FolderShareModalProps> = ({
   const [loading, setLoading] = useState<boolean>(false);
   const [shareCode, setShareCode] = useState<string | null>(null);
   const [isActive, setIsActive] = useState<boolean>(true);
+  const [expiresAt, setExpiresAt] = useState<string | null>(null);
+  const [timeRemaining, setTimeRemaining] = useState<string>("");
   const [qrDataUrl, setQrDataUrl] = useState<string>("");
   const [copiedLink, setCopiedLink] = useState<boolean>(false);
   const [copiedCode, setCopiedCode] = useState<boolean>(false);
@@ -107,6 +110,7 @@ export const FolderShareModal: React.FC<FolderShareModalProps> = ({
         if (data.success && isMounted) {
           setShareCode(data.shareCode);
           setIsActive(data.is_active ?? true);
+          setExpiresAt(data.expiresAt || null);
         } else if (data.error && isMounted) {
           onShowToast(`Error: ${data.error}`);
         }
@@ -140,6 +144,33 @@ export const FolderShareModal: React.FC<FolderShareModalProps> = ({
       .then((url) => setQrDataUrl(url))
       .catch((err) => console.error("QR Code generation error:", err));
   }, [shareLink]);
+
+  // Compute time remaining for expiration
+  useEffect(() => {
+    if (!expiresAt) return;
+
+    const updateTimer = () => {
+      const now = new Date().getTime();
+      const exp = new Date(expiresAt).getTime();
+      const distance = exp - now;
+
+      if (distance <= 0) {
+        setTimeRemaining("Expired");
+        setIsActive(false);
+        return;
+      }
+
+      const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+      
+      setTimeRemaining(`${hours}h ${minutes}m`);
+    };
+
+    updateTimer();
+    const interval = setInterval(updateTimer, 60000); // update every minute
+
+    return () => clearInterval(interval);
+  }, [expiresAt]);
 
   if (!isOpen) return null;
 
@@ -201,6 +232,7 @@ export const FolderShareModal: React.FC<FolderShareModalProps> = ({
       if (data.success) {
         setShareCode(data.shareCode);
         setIsActive(true);
+        setExpiresAt(data.expiresAt || null);
         onShowToast(`New share code generated: ${data.shareCode}`);
       } else {
         onShowToast(`Failed: ${data.error || "Could not regenerate code"}`);
@@ -299,9 +331,17 @@ export const FolderShareModal: React.FC<FolderShareModalProps> = ({
                       <span className="relative inline-flex w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
                     </span>
                     <div className="min-w-0">
-                      <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 block truncate">
-                        Sharing Active
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 block truncate">
+                          Sharing Active
+                        </span>
+                        {timeRemaining && timeRemaining !== "Expired" && (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                            <Clock className="w-3 h-3" />
+                            {timeRemaining}
+                          </span>
+                        )}
+                      </div>
                       <span className="text-[11px] text-slate-400 dark:text-slate-500 hidden sm:block">
                         Anyone with link can import
                       </span>

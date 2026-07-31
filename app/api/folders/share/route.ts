@@ -55,11 +55,12 @@ export async function POST(request: Request) {
       // 1. Check if a share code already exists for this folder_id
       const { data: existing, error: checkError } = await supabaseAdmin
         .from('folder_shares')
-        .select('share_code, is_active')
+        .select('share_code, is_active, expires_at')
         .eq('folder_id', folderId)
         .maybeSingle();
 
       if (!checkError && existing && existing.share_code) {
+        const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
         // Update items/folder_name on existing record
         await supabaseAdmin
           .from('folder_shares')
@@ -67,6 +68,7 @@ export async function POST(request: Request) {
             folder_name: folderName,
             folder_data: folderData,
             updated_at: new Date().toISOString(),
+            expires_at: expiresAt,
           })
           .eq('folder_id', folderId);
 
@@ -76,6 +78,7 @@ export async function POST(request: Request) {
           folderId,
           folderName,
           is_active: existing.is_active ?? true,
+          expiresAt,
         });
       }
 
@@ -100,6 +103,7 @@ export async function POST(request: Request) {
           }
         }
 
+        const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
         // Upsert share record into Supabase
         const { error } = await supabaseAdmin
           .from('folder_shares')
@@ -111,6 +115,7 @@ export async function POST(request: Request) {
               is_active: true,
               folder_data: folderData,
               updated_at: new Date().toISOString(),
+              expires_at: expiresAt,
             },
             { onConflict: 'folder_id' }
           );
@@ -122,6 +127,7 @@ export async function POST(request: Request) {
             folderId,
             folderName,
             is_active: true,
+            expiresAt,
           });
         }
 
@@ -137,8 +143,10 @@ export async function POST(request: Request) {
       // Check if an entry already exists for this folder_id
       const existingEntry = Object.values(shares).find((s) => s.folder_id === folderId);
       if (existingEntry) {
+        const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
         existingEntry.folder_name = folderName;
         existingEntry.folder_data = folderData;
+        existingEntry.expires_at = expiresAt;
         await saveLocalShares(shares);
 
         return NextResponse.json({
@@ -147,6 +155,7 @@ export async function POST(request: Request) {
           folderId,
           folderName,
           is_active: existingEntry.is_active ?? true,
+          expiresAt,
         });
       }
 
@@ -157,6 +166,7 @@ export async function POST(request: Request) {
         shareCode = generateShareCode();
       }
 
+      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
       shares[shareCode] = {
         folder_id: folderId,
         folder_name: folderName,
@@ -164,6 +174,7 @@ export async function POST(request: Request) {
         is_active: true,
         folder_data: folderData,
         created_at: new Date().toISOString(),
+        expires_at: expiresAt,
       };
       await saveLocalShares(shares);
 
@@ -173,6 +184,7 @@ export async function POST(request: Request) {
         folderId,
         folderName,
         is_active: true,
+        expiresAt,
       });
   } catch (error) {
     console.error('Error creating folder share:', error);
@@ -216,6 +228,7 @@ export async function PUT(request: Request) {
         folder: { id: folderId, name: folderName },
         items: items || [],
       };
+      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
 
       const { error } = await supabaseAdmin
         .from('folder_shares')
@@ -224,6 +237,7 @@ export async function PUT(request: Request) {
           is_active: true,
           folder_data: folderData,
           updated_at: new Date().toISOString(),
+          expires_at: expiresAt,
         })
         .eq('folder_id', folderId);
 
@@ -238,6 +252,7 @@ export async function PUT(request: Request) {
       delete shares[oldCode];
     }
 
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
     shares[newCode] = {
       folder_id: folderId,
       folder_name: folderName,
@@ -248,6 +263,7 @@ export async function PUT(request: Request) {
         items: items || [],
       },
       updated_at: new Date().toISOString(),
+      expires_at: expiresAt,
     };
     await saveLocalShares(shares);
 
@@ -256,6 +272,7 @@ export async function PUT(request: Request) {
       shareCode: newCode,
       folderId,
       is_active: true,
+      expiresAt,
     });
   } catch (error) {
     console.error('Error regenerating share code:', error);
