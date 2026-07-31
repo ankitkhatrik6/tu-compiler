@@ -38,7 +38,12 @@ async function saveLocalShares(shares: Record<string, SharedFolderRecord>) {
 // POST: Get existing share code or create a new one for folder
 export async function POST(request: Request) {
   try {
-    const { folderId, folderName, items } = await request.json();
+    const bodyText = await request.text();
+    if (!bodyText) {
+      return NextResponse.json({ error: 'Empty request body' }, { status: 400 });
+    }
+    
+    const { folderId, folderName, items } = JSON.parse(bodyText);
 
     if (!folderId || !folderName || !items || !Array.isArray(items)) {
       return NextResponse.json({ error: 'Invalid folder or items payload' }, { status: 400 });
@@ -60,26 +65,31 @@ export async function POST(request: Request) {
         .maybeSingle();
 
       if (!checkError && existing && existing.share_code) {
-        const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
-        // Update items/folder_name on existing record
-        await supabaseAdmin
-          .from('folder_shares')
-          .update({
-            folder_name: folderName,
-            folder_data: folderData,
-            updated_at: new Date().toISOString(),
-            expires_at: expiresAt,
-          })
-          .eq('folder_id', folderId);
+        const isExpired = existing.expires_at && new Date(existing.expires_at).getTime() < Date.now();
 
-        return NextResponse.json({
-          success: true,
-          shareCode: existing.share_code,
-          folderId,
-          folderName,
-          is_active: existing.is_active ?? true,
-          expiresAt,
-        });
+        if (isExpired) {
+          // Delete expired code so a new one is generated
+          await supabaseAdmin.from('folder_shares').delete().eq('folder_id', folderId);
+        } else {
+          // Existing active code, don't generate a new one, maintain expires_at
+          await supabaseAdmin
+            .from('folder_shares')
+            .update({
+              folder_name: folderName,
+              folder_data: folderData,
+              updated_at: new Date().toISOString(),
+            })
+            .eq('folder_id', folderId);
+
+          return NextResponse.json({
+            success: true,
+            shareCode: existing.share_code,
+            folderId,
+            folderName,
+            is_active: existing.is_active ?? true,
+            expiresAt: existing.expires_at,
+          });
+        }
       }
 
       // If table doesn't exist (PGRST205), skip Supabase and use local fallback directly
@@ -104,10 +114,11 @@ export async function POST(request: Request) {
         }
 
         const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
-        // Upsert share record into Supabase
+        
+        // Insert share record into Supabase (instead of upsert to avoid onConflict unique constraint issues if user hasn't run schema update)
         const { error } = await supabaseAdmin
           .from('folder_shares')
-          .upsert(
+          .insert(
             {
               folder_id: folderId,
               folder_name: folderName,
@@ -116,8 +127,7 @@ export async function POST(request: Request) {
               folder_data: folderData,
               updated_at: new Date().toISOString(),
               expires_at: expiresAt,
-            },
-            { onConflict: 'folder_id' }
+            }
           );
 
         if (!error) {
@@ -131,8 +141,10 @@ export async function POST(request: Request) {
           });
         }
 
+        console.error("Supabase insert error:", error);
         console.log('Supabase table folder_shares unavailable, using local storage fallback.');
       } else {
+        console.error("Supabase check error:", checkError);
         console.log('Supabase table folder_shares unavailable, using local storage fallback.');
       }
     }
@@ -140,23 +152,25 @@ export async function POST(request: Request) {
     // Fallback local persistence
     const shares = await getLocalShares();
 
-      // Check if an entry already exists for this folder_id
       const existingEntry = Object.values(shares).find((s) => s.folder_id === folderId);
       if (existingEntry) {
-        const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
-        existingEntry.folder_name = folderName;
-        existingEntry.folder_data = folderData;
-        existingEntry.expires_at = expiresAt;
-        await saveLocalShares(shares);
+        const isExpired = existingEntry.expires_at && new Date(existingEntry.expires_at).getTime() < Date.now();
+        if (isExpired) {
+          delete shares[existingEntry.share_code];
+        } else {
+          existingEntry.folder_name = folderName;
+          existingEntry.folder_data = folderData;
+          await saveLocalShares(shares);
 
-        return NextResponse.json({
-          success: true,
-          shareCode: existingEntry.share_code,
-          folderId,
-          folderName,
-          is_active: existingEntry.is_active ?? true,
-          expiresAt,
-        });
+          return NextResponse.json({
+            success: true,
+            shareCode: existingEntry.share_code,
+            folderId,
+            folderName,
+            is_active: existingEntry.is_active ?? true,
+            expiresAt: existingEntry.expires_at,
+          });
+        }
       }
 
       let shareCode = generateShareCode();
