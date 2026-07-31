@@ -13,6 +13,7 @@ import {
   CameraOff,
   Folder,
   FileCode,
+  Clock,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
@@ -46,7 +47,9 @@ export const FolderImportModal: React.FC<FolderImportModalProps> = ({
   const [preview, setPreview] = useState<{
     folderName: string;
     items: Array<{ id: string; name: string; type: "file" | "folder" }>;
+    expiresAt?: string;
   } | null>(null);
+  const [timeRemaining, setTimeRemaining] = useState<string>("");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   // QR Scanner States
@@ -76,6 +79,7 @@ export const FolderImportModal: React.FC<FolderImportModalProps> = ({
         setPreview({
           folderName: data.folderName,
           items: data.items,
+          expiresAt: data.expiresAt,
         });
       } else {
         setErrorMsg(data.error || "Invalid or expired share code.");
@@ -142,6 +146,32 @@ export const FolderImportModal: React.FC<FolderImportModalProps> = ({
       stopQrScanner();
     };
   }, [stopQrScanner]);
+
+  // Compute time remaining for expiration
+  useEffect(() => {
+    if (!preview?.expiresAt) return;
+
+    const updateTimer = () => {
+      const now = new Date().getTime();
+      const exp = new Date(preview.expiresAt!).getTime();
+      const distance = exp - now;
+
+      if (distance <= 0) {
+        setTimeRemaining("Expired");
+        return;
+      }
+
+      const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+      
+      setTimeRemaining(`${hours}h ${minutes}m`);
+    };
+
+    updateTimer();
+    const interval = setInterval(updateTimer, 60000); // update every minute
+
+    return () => clearInterval(interval);
+  }, [preview?.expiresAt]);
 
   // Start HTML5 QR Code scanner with camera permission request & fallback
   const startQrScanner = async () => {
@@ -388,10 +418,18 @@ export const FolderImportModal: React.FC<FolderImportModalProps> = ({
                   <div className="p-2 rounded-xl bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 shrink-0">
                     <CheckCircle2 className="w-5 h-5" />
                   </div>
-                  <div className="min-w-0">
-                    <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider block">
-                      Folder Verified & Ready
-                    </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider block">
+                        Folder Verified & Ready
+                      </span>
+                      {timeRemaining && timeRemaining !== "Expired" && (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                          <Clock className="w-3 h-3" />
+                          {timeRemaining}
+                        </span>
+                      )}
+                    </div>
                     <h4 className="text-sm font-bold text-slate-900 dark:text-white truncate">
                       {preview.folderName}
                     </h4>

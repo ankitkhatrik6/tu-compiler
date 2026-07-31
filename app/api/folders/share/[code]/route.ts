@@ -57,6 +57,24 @@ export async function GET(request: Request, { params }: { params: Promise<{ code
       return NextResponse.json({ error: 'Sharing for this folder has been disabled by the owner' }, { status: 403 });
     }
 
+    if (shareRecord.expires_at && new Date(shareRecord.expires_at) < new Date()) {
+      // Record is expired, delete it
+      if (supabaseAdmin) {
+        await supabaseAdmin.from('folder_shares').delete().eq('share_code', formattedCode);
+      }
+      try {
+        const data = await fs.readFile(SHARES_FILE, 'utf-8');
+        const shares = JSON.parse(data);
+        if (shares[formattedCode]) {
+          delete shares[formattedCode];
+          await fs.writeFile(SHARES_FILE, JSON.stringify(shares, null, 2), 'utf-8');
+        }
+      } catch (e) {
+        // Ignore local read/write error on cleanup
+      }
+      return NextResponse.json({ error: 'Share code has expired' }, { status: 410 });
+    }
+
     return NextResponse.json({
       success: true,
       shareCode: shareRecord.share_code,
@@ -64,6 +82,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ code
       folderId: shareRecord.folder_id,
       items: shareRecord.folder_data?.items || [],
       createdAt: shareRecord.created_at,
+      expiresAt: shareRecord.expires_at,
     });
   } catch (error) {
     console.error('Error fetching share code details:', error);
@@ -106,6 +125,24 @@ export async function POST(request: Request, { params }: { params: Promise<{ cod
 
     if (!shareRecord.is_active) {
       return NextResponse.json({ error: 'Sharing for this folder has been disabled' }, { status: 403 });
+    }
+
+    if (shareRecord.expires_at && new Date(shareRecord.expires_at) < new Date()) {
+      // Record is expired, delete it
+      if (supabaseAdmin) {
+        await supabaseAdmin.from('folder_shares').delete().eq('share_code', formattedCode);
+      }
+      try {
+        const data = await fs.readFile(SHARES_FILE, 'utf-8');
+        const shares = JSON.parse(data);
+        if (shares[formattedCode]) {
+          delete shares[formattedCode];
+          await fs.writeFile(SHARES_FILE, JSON.stringify(shares, null, 2), 'utf-8');
+        }
+      } catch (e) {
+        // Ignore local cleanup error
+      }
+      return NextResponse.json({ error: 'Share code has expired' }, { status: 410 });
     }
 
     const originalItems = shareRecord.folder_data?.items || [];

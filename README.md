@@ -28,6 +28,7 @@ It uses the Gemini API under the hood to simulate a real GCC/G++ compiler and Li
 - **Virtual File System** — create, rename, and manage multiple `.c` and `.cpp` files in a folder structure
 - **Interactive Terminal** — handles `cin`, `scanf`, `getline` and other input functions interactively
 - **Real Compiler Output** — compile errors look exactly like GCC/G++ output
+- **Cloud Folder Sharing** — Share your workspace via a 6-digit code or QR link (expires in 24 hours).
 - **Multi-file Support** — includes other workspace files when resolving `#include "header.h"`
 - **Terminal Screenshot** — export your terminal session as a clean PNG image
 - **Customizable Prompt** — set your own terminal username and hostname
@@ -82,6 +83,10 @@ Create a `.env.local` file in the root directory:
 
 ```env
 GEMINI_API_KEY=your_gemini_api_key_here
+
+# For Folder Sharing (Optional - uses local file system if not provided)
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
+SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
 ```
 
 > ⚠️ Never commit your `.env.local` file. It's already in `.gitignore`.
@@ -94,7 +99,7 @@ This project is configured for standalone output, which works well with Docker o
 
 ### Deploy on Vercel
 
-The easiest way — just connect your GitHub repo to [Vercel](https://vercel.com) and add the `GEMINI_API_KEY` environment variable in the project settings.
+The easiest way — just connect your GitHub repo to [Vercel](https://vercel.com) and add the `GEMINI_API_KEY` and Supabase environment variables in the project settings.
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new)
 

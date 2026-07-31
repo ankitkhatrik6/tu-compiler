@@ -35,8 +35,12 @@ CREATE TABLE IF NOT EXISTS public.folder_shares (
     is_active BOOLEAN DEFAULT TRUE,
     folder_data JSONB NOT NULL, -- Full folder snapshot (tree of files/subfolders)
     created_at TIMESTAMPTZ DEFAULT NOW(),
-    updated_at TIMESTAMPTZ DEFAULT NOW()
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    expires_at TIMESTAMPTZ DEFAULT (NOW() + INTERVAL '24 hours')
 );
+
+-- Ensure the column exists if the table was created previously without it
+ALTER TABLE public.folder_shares ADD COLUMN IF NOT EXISTS expires_at TIMESTAMPTZ DEFAULT (NOW() + INTERVAL '24 hours');
 
 -- 4. Indexes for rapid lookups
 CREATE UNIQUE INDEX IF NOT EXISTS idx_folder_shares_share_code ON public.folder_shares(share_code);
@@ -72,12 +76,14 @@ ALTER TABLE public.folder_shares ENABLE ROW LEVEL SECURITY;
 
 -- 7. RLS Policies
 -- Folders Policies
+DROP POLICY IF EXISTS "Users can manage their own folders" ON public.folders;
 CREATE POLICY "Users can manage their own folders" 
 ON public.folders FOR ALL 
 USING (auth.uid() = user_id) 
 WITH CHECK (auth.uid() = user_id);
 
 -- Files Policies
+DROP POLICY IF EXISTS "Users can manage their own files" ON public.files;
 CREATE POLICY "Users can manage their own files" 
 ON public.files FOR ALL 
 USING (auth.uid() = user_id) 
@@ -85,12 +91,14 @@ WITH CHECK (auth.uid() = user_id);
 
 -- Folder Shares Policies
 -- Owners can manage (insert/update/delete) their folder shares
+DROP POLICY IF EXISTS "Owners can manage their folder shares" ON public.folder_shares;
 CREATE POLICY "Owners can manage their folder shares"
 ON public.folder_shares FOR ALL
 USING (auth.uid() = owner_id)
 WITH CHECK (auth.uid() = owner_id);
 
 -- Public / Authenticated users can read active shared folders using a share code
+DROP POLICY IF EXISTS "Anyone can read active shared folders" ON public.folder_shares;
 CREATE POLICY "Anyone can read active shared folders"
 ON public.folder_shares FOR SELECT
 USING (is_active = TRUE);
@@ -100,6 +108,7 @@ INSERT INTO storage.buckets (id, name, public)
 VALUES ('folder-shares', 'folder-shares', true)
 ON CONFLICT (id) DO NOTHING;
 
+DROP POLICY IF EXISTS "Public Access to Folder Shares Bucket" ON storage.objects;
 CREATE POLICY "Public Access to Folder Shares Bucket" 
 ON storage.objects FOR SELECT 
 USING (bucket_id = 'folder-shares');
