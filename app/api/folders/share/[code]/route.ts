@@ -38,10 +38,10 @@ export async function GET(request: Request, { params }: { params: Promise<{ code
         .from('folder_shares')
         .select('*')
         .eq('share_code', formattedCode)
-        .maybeSingle();
+        .limit(1);
 
-      if (data && !error) {
-        shareRecord = data as SharedFolderRecord;
+      if (data && data.length > 0 && !error) {
+        shareRecord = data[0] as SharedFolderRecord;
       }
     }
 
@@ -108,10 +108,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ cod
         .from('folder_shares')
         .select('*')
         .eq('share_code', formattedCode)
-        .maybeSingle();
+        .limit(1);
 
-      if (data) {
-        shareRecord = data as SharedFolderRecord;
+      if (data && data.length > 0) {
+        shareRecord = data[0] as SharedFolderRecord;
       }
     }
 
