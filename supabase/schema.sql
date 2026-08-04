@@ -1,5 +1,4 @@
--- Supabase Database Schema for TU Compiler Folder Sharing
--- Run this SQL in your Supabase SQL Editor to initialize all tables, RLS policies, indexes, and functions.
+-- Supabase Database Schema
 
 -- Enable UUID extension if not already enabled
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
