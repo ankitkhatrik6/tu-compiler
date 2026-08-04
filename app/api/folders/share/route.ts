@@ -109,7 +109,7 @@ export async function POST(request: Request) {
             .eq('share_code', shareCode)
             .limit(1);
 
-          if (!data) {
+          if (!data || data.length === 0) {
             isUnique = true;
           } else {
             shareCode = generateShareCode();
@@ -231,9 +231,9 @@ export async function PUT(request: Request) {
           .from('folder_shares')
           .select('share_code')
           .eq('share_code', newCode)
-          .maybeSingle();
+          .limit(1);
 
-        if (!data) {
+        if (!data || data.length === 0) {
           isUnique = true;
         } else {
           newCode = generateShareCode();
