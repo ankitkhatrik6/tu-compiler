@@ -58,11 +58,14 @@ export async function POST(request: Request) {
 
     if (supabaseAdmin) {
       // 1. Check if a share code already exists for this folder_id
-      const { data: existing, error: checkError } = await supabaseAdmin
+      const { data: existingRecords, error: checkError } = await supabaseAdmin
         .from('folder_shares')
         .select('share_code, is_active, expires_at')
         .eq('folder_id', folderId)
-        .maybeSingle();
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      const existing = existingRecords?.[0];
 
       if (!checkError && existing && existing.share_code) {
         const isExpired = existing.expires_at && new Date(existing.expires_at).getTime() < Date.now();
