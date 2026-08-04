@@ -42,10 +42,13 @@ CREATE TABLE IF NOT EXISTS public.folder_shares (
 -- Ensure the column exists if the table was created previously without it
 ALTER TABLE public.folder_shares ADD COLUMN IF NOT EXISTS expires_at TIMESTAMPTZ DEFAULT (NOW() + INTERVAL '24 hours');
 
--- 4. Indexes for rapid lookups
+-- 4. Indexes and Constraints for rapid lookups
 CREATE UNIQUE INDEX IF NOT EXISTS idx_folder_shares_share_code ON public.folder_shares(share_code);
-CREATE INDEX IF NOT EXISTS idx_folder_shares_folder_id ON public.folder_shares(folder_id);
 CREATE INDEX IF NOT EXISTS idx_folder_shares_owner_id ON public.folder_shares(owner_id);
+
+-- Ensure folder_id is unique so that UPSERT (ON CONFLICT (folder_id)) works correctly
+ALTER TABLE public.folder_shares DROP CONSTRAINT IF EXISTS folder_shares_folder_id_key;
+ALTER TABLE public.folder_shares ADD CONSTRAINT folder_shares_folder_id_key UNIQUE (folder_id);
 CREATE INDEX IF NOT EXISTS idx_folders_user_id ON public.folders(user_id);
 CREATE INDEX IF NOT EXISTS idx_files_user_id ON public.files(user_id);
 
