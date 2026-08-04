@@ -49,7 +49,6 @@ export const FolderShareModal: React.FC<FolderShareModalProps> = ({
   const [qrDataUrl, setQrDataUrl] = useState<string>("");
   const [copiedLink, setCopiedLink] = useState<boolean>(false);
   const [copiedCode, setCopiedCode] = useState<boolean>(false);
-  const [isRegenerating, setIsRegenerating] = useState<boolean>(false);
   const [isToggling, setIsToggling] = useState<boolean>(false);
 
   // Compute share link URL
@@ -162,12 +161,13 @@ export const FolderShareModal: React.FC<FolderShareModalProps> = ({
 
       const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
       const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((distance % (1000 * 60)) / 1000);
       
-      setTimeRemaining(`${hours}h ${minutes}m`);
+      setTimeRemaining(`${hours}h ${minutes}m ${seconds}s`);
     };
 
     updateTimer();
-    const interval = setInterval(updateTimer, 60000); // update every minute
+    const interval = setInterval(updateTimer, 1000); // update every second
 
     return () => clearInterval(interval);
   }, [expiresAt]);
@@ -192,58 +192,7 @@ export const FolderShareModal: React.FC<FolderShareModalProps> = ({
     setTimeout(() => setCopiedCode(false), 2000);
   };
 
-  // Regenerate Share Code
-  const handleRegenerate = async () => {
-    if (!folderId || isRegenerating) return;
-    setIsRegenerating(true);
-    try {
-      const collectedItemIds = new Set<string>([folderId]);
-      let added = true;
-      while (added) {
-        added = false;
-        for (const item of folderItems) {
-          if (
-            item.parentId &&
-            collectedItemIds.has(item.parentId) &&
-            !collectedItemIds.has(item.id)
-          ) {
-            collectedItemIds.add(item.id);
-            added = true;
-          }
-        }
-      }
 
-      const itemsToShare = folderItems.filter((item) =>
-        collectedItemIds.has(item.id)
-      );
-
-      const res = await fetch("/api/folders/share", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          folderId,
-          folderName,
-          items: itemsToShare,
-          oldCode: shareCode,
-        }),
-      });
-
-      const data = await res.json();
-      if (data.success) {
-        setShareCode(data.shareCode);
-        setIsActive(true);
-        setExpiresAt(data.expiresAt || null);
-        onShowToast(`New share code generated: ${data.shareCode}`);
-      } else {
-        onShowToast(`Failed: ${data.error || "Could not regenerate code"}`);
-      }
-    } catch (err) {
-      console.error("Regenerate error:", err);
-      onShowToast("Failed to regenerate share code.");
-    } finally {
-      setIsRegenerating(false);
-    }
-  };
 
   // Toggle Sharing Disable/Enable
   const handleToggleActive = async () => {
@@ -443,21 +392,6 @@ export const FolderShareModal: React.FC<FolderShareModalProps> = ({
                             )}
                           </button>
                         </div>
-                      </div>
-
-                      <div className="pt-1 flex items-center justify-center sm:justify-start">
-                        <button
-                          onClick={handleRegenerate}
-                          disabled={isRegenerating || loading}
-                          className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-blue-600 dark:text-slate-400 dark:hover:text-blue-400 transition-colors disabled:opacity-50"
-                        >
-                          <RefreshCw
-                            className={`w-3.5 h-3.5 ${
-                              isRegenerating ? "animate-spin text-blue-500" : ""
-                            }`}
-                          />
-                          <span>Regenerate new code</span>
-                        </button>
                       </div>
                     </div>
                   </div>
