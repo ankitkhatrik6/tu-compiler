@@ -1,0 +1,77 @@
+diff --git a/app/api/folders/share/[code]/route.ts b/app/api/folders/share/[code]/route.ts
+index 20a1067..96bf9ae 100644
+--- a/app/api/folders/share/[code]/route.ts
++++ b/app/api/folders/share/[code]/route.ts
+@@ -38,10 +38,10 @@ export async function GET(request: Request, { params }: { params: Promise<{ code
+         .from('folder_shares')
+         .select('*')
+         .eq('share_code', formattedCode)
+-        .maybeSingle();
++        .limit(1);
+ 
+-      if (data && !error) {
+-        shareRecord = data as SharedFolderRecord;
++      if (data && data.length > 0 && !error) {
++        shareRecord = data[0] as SharedFolderRecord;
+       }
+     }
+ 
+@@ -108,10 +108,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ cod
+         .from('folder_shares')
+         .select('*')
+         .eq('share_code', formattedCode)
+-        .maybeSingle();
++        .limit(1);
+ 
+-      if (data) {
+-        shareRecord = data as SharedFolderRecord;
++      if (data && data.length > 0) {
++        shareRecord = data[0] as SharedFolderRecord;
+       }
+     }
+ 
+diff --git a/app/api/folders/share/route.ts b/app/api/folders/share/route.ts
+index abe6ba9..f21da60 100644
+--- a/app/api/folders/share/route.ts
++++ b/app/api/folders/share/route.ts
+@@ -58,11 +58,14 @@ export async function POST(request: Request) {
+ 
+     if (supabaseAdmin) {
+       // 1. Check if a share code already exists for this folder_id
+-      const { data: existing, error: checkError } = await supabaseAdmin
++      const { data: existingRecords, error: checkError } = await supabaseAdmin
+         .from('folder_shares')
+         .select('share_code, is_active, expires_at')
+         .eq('folder_id', folderId)
+-        .maybeSingle();
++        .order('created_at', { ascending: false })
++        .limit(1);
++
++      const existing = existingRecords?.[0];
+ 
+       if (!checkError && existing && existing.share_code) {
+         const isExpired = existing.expires_at && new Date(existing.expires_at).getTime() < Date.now();
+@@ -104,9 +107,9 @@ export async function POST(request: Request) {
+             .from('folder_shares')
+             .select('share_code')
+             .eq('share_code', shareCode)
+-            .maybeSingle();
++            .limit(1);
+ 
+-          if (!data) {
++          if (!data || data.length === 0) {
+             isUnique = true;
+           } else {
+             shareCode = generateShareCode();
+@@ -228,9 +231,9 @@ export async function PUT(request: Request) {
+           .from('folder_shares')
+           .select('share_code')
+           .eq('share_code', newCode)
+-          .maybeSingle();
++          .limit(1);
+ 
+-        if (!data) {
++        if (!data || data.length === 0) {
+           isUnique = true;
+         } else {
+           newCode = generateShareCode();

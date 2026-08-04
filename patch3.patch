@@ -1,0 +1,27 @@
+diff --git a/app/api/folders/share/[code]/route.ts b/app/api/folders/share/[code]/route.ts
+--- a/app/api/folders/share/[code]/route.ts
++++ b/app/api/folders/share/[code]/route.ts
+@@ -38,6 +38,6 @@
+         .from('folder_shares')
+         .select('*')
+         .eq('share_code', formattedCode)
+-        .maybeSingle();
++        .limit(1);
+ 
+-      if (data && !error) {
+-        shareRecord = data as SharedFolderRecord;
++      if (data && data.length > 0 && !error) {
++        shareRecord = data[0] as SharedFolderRecord;
+       }
+@@ -108,6 +108,6 @@
+         .from('folder_shares')
+         .select('*')
+         .eq('share_code', formattedCode)
+-        .maybeSingle();
++        .limit(1);
+ 
+-      if (data) {
+-        shareRecord = data as SharedFolderRecord;
++      if (data && data.length > 0) {
++        shareRecord = data[0] as SharedFolderRecord;
+       }

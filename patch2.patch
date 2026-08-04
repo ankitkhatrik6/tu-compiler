@@ -1,0 +1,23 @@
+diff --git a/app/api/folders/share/route.ts b/app/api/folders/share/route.ts
+--- a/app/api/folders/share/route.ts
++++ b/app/api/folders/share/route.ts
+@@ -104,5 +104,5 @@
+             .from('folder_shares')
+             .select('share_code')
+             .eq('share_code', shareCode)
+-            .maybeSingle();
++            .limit(1);
+ 
+-          if (!data) {
++          if (!data || data.length === 0) {
+             isUnique = true;
+@@ -228,5 +228,5 @@
+           .from('folder_shares')
+           .select('share_code')
+           .eq('share_code', newCode)
+-          .maybeSingle();
++          .limit(1);
+ 
+-        if (!data) {
++        if (!data || data.length === 0) {
+           isUnique = true;
