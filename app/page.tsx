@@ -32,6 +32,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { FolderShareModal } from "@/components/FolderShareModal";
 import { FolderImportModal } from "@/components/FolderImportModal";
+import { ActiveSharesModal } from "@/components/ActiveSharesModal";
 
 // Virtual File System Item Schema
 interface FSItem {
@@ -171,6 +172,8 @@ export default function IDEPage() {
     isOpen: false,
     initialCode: "",
   });
+
+  const [activeSharesModalOpen, setActiveSharesModalOpen] = useState(false);
 
   const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>({
     "folder-1": true,
@@ -1232,6 +1235,13 @@ export default function IDEPage() {
             </span>
             <div className="flex items-center space-x-1">
               <button
+                onClick={() => setActiveSharesModalOpen(true)}
+                title="Active Shared Folders"
+                className="p-1 text-[var(--text-dim)] hover:text-[#4A9eff] hover:bg-[var(--bg-hover)] rounded transition-colors mr-1"
+              >
+                <Share2 className="w-3.5 h-3.5" />
+              </button>
+              <button
                 onClick={() => setFolderImportModal({ isOpen: true, initialCode: "" })}
                 title="Import shared folder via 6-digit code or QR"
                 className="p-1 text-[var(--text-dim)] hover:text-[#4A9eff] hover:bg-[var(--bg-hover)] rounded transition-colors mr-1"
@@ -1857,6 +1867,13 @@ export default function IDEPage() {
         onClose={() => setFolderImportModal({ isOpen: false, initialCode: "" })}
         initialCode={folderImportModal.initialCode}
         onImportSuccess={handleImportSuccess}
+        onShowToast={showToast}
+      />
+
+      <ActiveSharesModal
+        isOpen={activeSharesModalOpen}
+        onClose={() => setActiveSharesModalOpen(false)}
+        folderIds={fs.filter((f) => f.type === "folder").map((f) => f.id)}
         onShowToast={showToast}
       />
     </div>
