@@ -462,6 +462,18 @@ export default function IDEPage() {
 
     saveFsToLocalStorage(newFs);
 
+    // Clean up local active shares if any deleted folder was shared/imported
+    const activeSharesStr = localStorage.getItem("tucompiler_active_shares");
+    if (activeSharesStr) {
+      try {
+        let activeShares = JSON.parse(activeSharesStr);
+        activeShares = activeShares.filter((s: any) => !idsToDelete.includes(s.folderId));
+        localStorage.setItem("tucompiler_active_shares", JSON.stringify(activeShares));
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
     // Clean up tabs
     const filteredTabs = openTabs.filter((tId) => !idsToDelete.includes(tId));
     setOpenTabs(filteredTabs);
@@ -503,10 +515,38 @@ export default function IDEPage() {
   // Handle successful Folder Import from QR / 6-digit Code
   const handleImportSuccess = (
     importedItems: FSItem[],
-    importedFolderName: string
+    importedFolderName: string,
+    shareCode?: string,
+    expiresAt?: string
   ) => {
     const newFs = [...fs, ...importedItems];
     saveFsToLocalStorage(newFs);
+
+    // Save active share locally for import
+    if (shareCode) {
+      const activeSharesStr = localStorage.getItem("tucompiler_active_shares");
+      let activeShares = [];
+      if (activeSharesStr) {
+        try {
+          activeShares = JSON.parse(activeSharesStr);
+        } catch (e) {
+          activeShares = [];
+        }
+      }
+      const exists = activeShares.some((s: any) => s.shareCode === shareCode);
+      if (!exists) {
+        const exp = expiresAt || new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+        activeShares.push({
+          shareCode,
+          folderId: importedItems.find((item) => item.parentId === null)?.id || "",
+          folderName: importedFolderName,
+          expiresAt: exp,
+          role: "importer",
+          isActive: true,
+        });
+        localStorage.setItem("tucompiler_active_shares", JSON.stringify(activeShares));
+      }
+    }
 
     // Expand all newly imported subfolders
     const importedFolderIds = importedItems
