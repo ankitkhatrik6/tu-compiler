@@ -12,6 +12,7 @@ interface ActiveShare {
   folder_name: string;
   is_active: boolean;
   expires_at: string;
+  role?: "owner" | "importer";
 }
 
 interface ActiveSharesModalProps {
@@ -106,10 +107,19 @@ const ActiveShareCard = ({
 
       <div className="flex-1 min-w-0 space-y-2">
         <div className="flex items-center justify-between gap-2">
-          <h4 className="text-sm font-bold text-slate-900 dark:text-slate-100 truncate">
-            {share.folder_name}
-          </h4>
-          <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 shrink-0">
+          <div className="min-w-0 flex-1">
+            <h4 className="text-sm font-bold text-slate-900 dark:text-slate-100 truncate">
+              {share.folder_name}
+            </h4>
+            <span className={`inline-flex items-center text-[10px] font-semibold px-2 py-0.5 mt-1 rounded-full border ${
+              share.role === "importer"
+                ? "bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20"
+                : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20"
+            }`}>
+              {share.role === "importer" ? "Imported" : "Shared by me"}
+            </span>
+          </div>
+          <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 shrink-0 self-start">
             <Clock className="w-3 h-3" />
             {timeRemaining}
           </span>
@@ -151,30 +161,55 @@ export const ActiveSharesModal: React.FC<ActiveSharesModalProps> = ({
   useEffect(() => {
     if (!isOpen) return;
 
-    let isMounted = true;
-    const fetchShares = async () => {
+    const fetchShares = () => {
       setLoading(true);
       try {
-        const res = await fetch("/api/folders/share/active", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ folderIds }),
-        });
-        const data = await res.json();
-        if (data.shares && isMounted) {
-          setShares(data.shares);
+        const activeSharesStr = localStorage.getItem("tucompiler_active_shares");
+        let activeShares: any[] = [];
+        if (activeSharesStr) {
+          try {
+            activeShares = JSON.parse(activeSharesStr);
+          } catch (e) {
+            activeShares = [];
+          }
         }
+
+        const now = Date.now();
+        // Filter out expired ones
+        const validShares = activeShares.filter((s: any) => {
+          if (!s.expiresAt) return false;
+          return new Date(s.expiresAt).getTime() > now;
+        });
+
+        // Filter out ones whose folderId is not in folderIds (deleted/removed folders)
+        const currentShares = validShares.filter((s: any) => {
+          return folderIds.includes(s.folderId);
+        });
+
+        // Save back cleaned list to localStorage if changed
+        if (currentShares.length !== activeShares.length) {
+          localStorage.setItem("tucompiler_active_shares", JSON.stringify(currentShares));
+        }
+
+        // Map client properties to API naming convention for ActiveShareCard
+        const mappedShares: ActiveShare[] = currentShares.map((s: any) => ({
+          share_code: s.shareCode,
+          folder_id: s.folderId,
+          folder_name: s.folderName,
+          is_active: s.isActive ?? true,
+          expires_at: s.expiresAt,
+          role: s.role,
+        }));
+
+        setShares(mappedShares);
       } catch (err) {
-        console.error("Failed to fetch active shares", err);
+        console.error("Failed to load active shares from localStorage:", err);
       } finally {
-        if (isMounted) setLoading(false);
+        setLoading(false);
       }
     };
 
     fetchShares();
-    return () => {
-      isMounted = false;
-    };
   }, [isOpen, folderIds]);
 
   if (!isOpen) return null;
@@ -203,7 +238,7 @@ export const ActiveSharesModal: React.FC<ActiveSharesModalProps> = ({
                   Active Shares
                 </h3>
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                  Folders you are currently sharing
+                  Folders currently being shared or imported
                 </p>
               </div>
             </div>
@@ -235,7 +270,7 @@ export const ActiveSharesModal: React.FC<ActiveSharesModalProps> = ({
                 </div>
                 <h4 className="text-sm font-semibold text-slate-700 dark:text-slate-300">No active shares found</h4>
                 <p className="text-xs text-slate-500 mt-2 max-w-[250px]">
-                  You are not currently sharing any folders. Share a folder from the explorer to see it here.
+                  You are not currently sharing or importing any active folders.
                 </p>
               </div>
             )}
