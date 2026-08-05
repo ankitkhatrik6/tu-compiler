@@ -95,6 +95,21 @@ export const FolderShareModal: React.FC<FolderShareModalProps> = ({
           collectedItemIds.has(item.id)
         );
 
+        // Check if there is an active share locally for this folderId
+        const activeSharesStr = localStorage.getItem("tucompiler_active_shares");
+        let localCode = undefined;
+        let localExpiresAt = undefined;
+        if (activeSharesStr) {
+          try {
+            const activeShares = JSON.parse(activeSharesStr);
+            const found = activeShares.find((s: any) => s.folderId === folderId);
+            if (found && new Date(found.expiresAt).getTime() > Date.now()) {
+              localCode = found.shareCode;
+              localExpiresAt = found.expiresAt;
+            }
+          } catch (e) {}
+        }
+
         const res = await fetch("/api/folders/share", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -102,6 +117,8 @@ export const FolderShareModal: React.FC<FolderShareModalProps> = ({
             folderId,
             folderName,
             items: itemsToShare,
+            shareCode: localCode,
+            expiresAt: localExpiresAt,
           }),
         });
 
@@ -110,6 +127,26 @@ export const FolderShareModal: React.FC<FolderShareModalProps> = ({
           setShareCode(data.shareCode);
           setIsActive(data.is_active ?? true);
           setExpiresAt(data.expiresAt || null);
+
+          // Save to local active shares
+          let activeShares = [];
+          if (activeSharesStr) {
+            try {
+              activeShares = JSON.parse(activeSharesStr);
+            } catch (e) {
+              activeShares = [];
+            }
+          }
+          activeShares = activeShares.filter((s: any) => s.folderId !== folderId);
+          activeShares.push({
+            shareCode: data.shareCode,
+            folderId,
+            folderName,
+            expiresAt: data.expiresAt || new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+            role: "owner",
+            isActive: data.is_active ?? true
+          });
+          localStorage.setItem("tucompiler_active_shares", JSON.stringify(activeShares));
         } else if (data.error && isMounted) {
           onShowToast(`Error: ${data.error}`);
         }
@@ -213,6 +250,23 @@ export const FolderShareModal: React.FC<FolderShareModalProps> = ({
       const data = await res.json();
       if (data.success) {
         setIsActive(newStatus);
+
+        // Update local active shares
+        const activeSharesStr = localStorage.getItem("tucompiler_active_shares");
+        if (activeSharesStr) {
+          try {
+            let activeShares = JSON.parse(activeSharesStr);
+            activeShares = activeShares.map((s: any) => {
+              if (s.shareCode === shareCode || s.folderId === folderId) {
+                return { ...s, isActive: newStatus };
+              }
+              return s;
+            });
+            localStorage.setItem("tucompiler_active_shares", JSON.stringify(activeShares));
+          } catch (e) {
+            console.error(e);
+          }
+        }
         onShowToast(newStatus ? "Folder sharing enabled!" : "Folder sharing disabled.");
       } else {
         onShowToast(`Failed: ${data.error}`);
