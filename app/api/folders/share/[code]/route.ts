@@ -195,6 +195,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ cod
       importedFolderName: `${rootFolderName} (Imported)`,
       importedFolderId: newRootFolderId,
       items: clonedItems,
+      shareCode: shareRecord.share_code,
+      expiresAt: shareRecord.expires_at,
     });
   } catch (error) {
     console.error('Error importing shared folder:', error);
