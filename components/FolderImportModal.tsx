@@ -29,7 +29,9 @@ interface FolderImportModalProps {
       parentId: string | null;
       content?: string;
     }>,
-    folderName: string
+    folderName: string,
+    shareCode?: string,
+    expiresAt?: string
   ) => void;
   onShowToast: (msg: string) => void;
 }
@@ -283,7 +285,7 @@ export const FolderImportModal: React.FC<FolderImportModalProps> = ({
       const data = await res.json();
 
       if (res.ok && data.success) {
-        onImportSuccess(data.items, data.importedFolderName);
+        onImportSuccess(data.items, data.importedFolderName, data.shareCode, data.expiresAt);
         onShowToast(`Successfully imported "${data.importedFolderName}"!`);
         onClose();
       } else {
