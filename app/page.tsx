@@ -937,6 +937,12 @@ export default function IDEPage() {
     setExecutionState({ status: "idle", output: "" });
   };
 
+  // Download File or Folder
+  const handleDownloadItem = async (id: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    // TODO: implement logic
+  };
+
   // Helper to get active file tab item
   const openTabsList = openTabs
     .map((tabId) => fs.find((item) => item.id === tabId))
@@ -1024,6 +1030,13 @@ export default function IDEPage() {
                       className="p-1 text-[var(--text-dim)] hover:text-[var(--text-light)] hover:bg-[var(--bg-active)] rounded"
                     >
                       <FolderPlus className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={(e) => handleDownloadItem(node.id, e)}
+                      title="Download folder"
+                      className="p-1 text-[var(--text-dim)] hover:text-[var(--text-light)] hover:bg-[var(--bg-active)] rounded"
+                    >
+                      <Download className="w-3.5 h-3.5" />
                     </button>
                     <button
                       onClick={(e) => {
@@ -1116,6 +1129,13 @@ export default function IDEPage() {
               {/* File Actions */}
               {!isRenaming && (
                 <div className="flex items-center space-x-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity flex-shrink-0 pl-1">
+                  <button
+                    onClick={(e) => handleDownloadItem(node.id, e)}
+                    title="Download file"
+                    className="p-0.5 text-[var(--text-dim)] hover:text-[var(--text-light)] hover:bg-[var(--bg-active)] rounded"
+                  >
+                    <Download className="w-3 h-3" />
+                  </button>
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
