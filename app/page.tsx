@@ -940,35 +940,36 @@ export default function IDEPage() {
   // Download File or Folder
   const handleDownloadItem = async (id: string, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
-    const item = fs.find((i) => i.id === id);
-    if (!item) return;
+    try {
+      const item = fs.find((i) => i.id === id);
+      if (!item) return;
 
-    if (item.type === "file") {
-      const blob = new Blob([item.content || ""], { type: "text/plain" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = item.name;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    } else {
-      const zip = new JSZip();
-      const addFolderToZip = (folderId: string, currentZip: JSZip) => {
-        const children = fs.filter((i) => i.parentId === folderId);
-        for (const child of children) {
-          if (child.type === "file") {
-            currentZip.file(child.name, child.content || "");
-          } else {
-            const newFolderZip = currentZip.folder(child.name);
-            if (newFolderZip) addFolderToZip(child.id, newFolderZip);
+      if (item.type === "file") {
+        const blob = new Blob([item.content || ""], { type: "text/plain" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = item.name;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      } else {
+        const zip = new JSZip();
+        const addFolderToZip = (folderId: string, currentZip: JSZip) => {
+          const children = fs.filter((i) => i.parentId === folderId);
+          for (const child of children) {
+            if (child.type === "file") {
+              currentZip.file(child.name, child.content || "");
+            } else {
+              const newFolderZip = currentZip.folder(child.name);
+              if (newFolderZip) addFolderToZip(child.id, newFolderZip);
+            }
           }
-        }
-      };
-      addFolderToZip(item.id, zip);
-      
-      zip.generateAsync({ type: "blob" }).then((content) => {
+        };
+        addFolderToZip(item.id, zip);
+        
+        const content = await zip.generateAsync({ type: "blob" });
         const url = URL.createObjectURL(content);
         const a = document.createElement("a");
         a.href = url;
@@ -977,7 +978,10 @@ export default function IDEPage() {
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
-      });
+      }
+    } catch (error) {
+      console.error("Error during download:", error);
+      showToast("Failed to download item");
     }
   };
 
