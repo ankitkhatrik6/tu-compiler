@@ -954,7 +954,30 @@ export default function IDEPage() {
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
     } else {
-      // TODO: implement folder download
+      const zip = new JSZip();
+      const addFolderToZip = (folderId: string, currentZip: JSZip) => {
+        const children = fs.filter((i) => i.parentId === folderId);
+        for (const child of children) {
+          if (child.type === "file") {
+            currentZip.file(child.name, child.content || "");
+          } else {
+            const newFolderZip = currentZip.folder(child.name);
+            if (newFolderZip) addFolderToZip(child.id, newFolderZip);
+          }
+        }
+      };
+      addFolderToZip(item.id, zip);
+      
+      zip.generateAsync({ type: "blob" }).then((content) => {
+        const url = URL.createObjectURL(content);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `${item.name}.zip`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      });
     }
   };
 
