@@ -940,7 +940,22 @@ export default function IDEPage() {
   // Download File or Folder
   const handleDownloadItem = async (id: string, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
-    // TODO: implement logic
+    const item = fs.find((i) => i.id === id);
+    if (!item) return;
+
+    if (item.type === "file") {
+      const blob = new Blob([item.content || ""], { type: "text/plain" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = item.name;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } else {
+      // TODO: implement folder download
+    }
   };
 
   // Helper to get active file tab item
