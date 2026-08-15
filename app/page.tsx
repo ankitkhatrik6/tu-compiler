@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import Editor from "@monaco-editor/react";
+import JSZip from "jszip";
 import {
   Folder,
   FolderOpen,
@@ -954,7 +955,9 @@ export default function IDEPage() {
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
+        showToast(`Downloaded ${item.name}`);
       } else {
+        showToast(`Zipping ${item.name}...`);
         const zip = new JSZip();
         const addFolderToZip = (folderId: string, currentZip: JSZip) => {
           const children = fs.filter((i) => i.parentId === folderId);
@@ -978,6 +981,7 @@ export default function IDEPage() {
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
+        showToast(`Downloaded ${item.name}.zip`);
       }
     } catch (error) {
       console.error("Error during download:", error);
