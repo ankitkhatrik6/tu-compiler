@@ -1,6 +1,8 @@
 {
   "name": "tu-compiler",
   "version": "1.1.1",
+  "description": "Browser-based C/C++ IDE powered by Gemini API",
+  "author": "Ankit Khatri KC",
   "private": true,
   "scripts": {
     "dev": "next dev -p 3000 -H 0.0.0.0",
