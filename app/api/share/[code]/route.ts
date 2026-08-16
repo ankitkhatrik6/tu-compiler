@@ -27,7 +27,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ code
   try {
     const { code } = await params;
 
-    if (!code || code.length !== 4) {
+    if (!code || code.length !== 6) {
       return NextResponse.json({ error: 'Invalid code' }, { status: 400 });
     }
 
