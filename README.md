@@ -123,8 +123,11 @@ tu-compiler/
 │   ├── globals.css
 │   ├── layout.tsx
 │   └── page.tsx            # Main IDE interface
+├── components/             # React components
+├── data/                   # Data logic and constants
 ├── hooks/                  # Custom React hooks
 ├── lib/                    # Utility functions
+├── supabase/               # Supabase database types and config
 ├── next.config.ts
 └── package.json
 ```
