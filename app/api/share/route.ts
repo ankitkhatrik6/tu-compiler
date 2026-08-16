@@ -50,7 +50,7 @@ export async function POST(request: Request) {
     const now = Date.now();
     const expiresAt = now + 48 * 60 * 60 * 1000;
     
-    // Generate unique 4-digit code
+    // Generate unique 6-digit code
     let code: string;
     
     if (redis) {
@@ -58,7 +58,7 @@ export async function POST(request: Request) {
       try {
         let isUnique = false;
         do {
-          code = Math.floor(1000 + Math.random() * 9000).toString();
+          code = Math.floor(100000 + Math.random() * 900000).toString();
           const exists = await redis.exists(`share:${code}`);
           if (!exists) isUnique = true;
         } while (!isUnique);
@@ -84,7 +84,7 @@ export async function POST(request: Request) {
       }
 
       do {
-        code = Math.floor(1000 + Math.random() * 9000).toString();
+        code = Math.floor(100000 + Math.random() * 900000).toString();
       } while (shares[code]);
 
       shares[code] = {
